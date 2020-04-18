@@ -1,6 +1,6 @@
-all: main
+all: md5
 
-main:
-	g++ main.cpp md5.cpp md5.h -o md5craker
+md5:
+	g++ main.cpp md5.cpp -o md5craker
 clean:
 	rm md5craker *.out *.err
