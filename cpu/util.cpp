@@ -10,6 +10,7 @@ void saveToVector(const vector<char>& v) {
 	allData.push_back(str);
 }
 
+// dfs
 void getCombination(vector<char> alphabet, int k) {
 	if (k == 0) {
 	  	saveToVector(allDataTmp);
@@ -20,4 +21,15 @@ void getCombination(vector<char> alphabet, int k) {
 	 	getCombination(alphabet, k-1);
 	 	allDataTmp.pop_back();
 	}
+}
+
+
+string customToString(long long val) { 
+    string ret;
+    static const size_t size = alphabet.size() -1;
+    while (val) { 
+        ret += alphabet[val % size];
+        val /= size;
+    }
+    return ret;
 }

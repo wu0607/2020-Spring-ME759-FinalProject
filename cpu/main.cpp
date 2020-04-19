@@ -13,37 +13,25 @@ using namespace std;
 // all combinations of input //
 vector<char> allDataTmp;
 vector<string> allData;
-
-// Global Variables //
-bool verbose;
+vector<char> alphabet;
 
 //Function prototypes //
 void md5_crack(string hash, string file);
 
-//  / ~ ~ ~ ~ CODE ~ ~  ~ ~ \  \\
 // showHelper //
 void showHelper() {
 	cout << "Usage: ./md5craker [HASH-TYPE] [HASH] [DICTIONARY] [-v]" << endl;
 }
 
-// MAIN //
 int main(int argc, char* argv[]) {
-	if(argc < 4) {
-		showHelper();
-	} else if(argc == 4 || argc == 5) {
+	if(argc == 3 || argc == 4) {
 		string type = argv[1];
 		string hash = argv[2];
-		string dict = argv[3];
-		ifstream file(dict);
-		if(file.is_open()) {
-			if (argc == 5) {
-				verbose = true;
-			} else {
-				verbose = false;
-			}
+		string dict = "";
+		if(argc == 4){
+			dict = argv[3];
 		}else{
 			cout << "File not exist, generate data recurrsively" << endl;
-			dict = "";
 		}
 			
 		boost::to_upper(type);
@@ -73,13 +61,12 @@ void md5_crack(string hash, string filename) {
 				cout << "[" << tries << "] - PASSWORD FOUND - " << pass << endl;
 				exit(0);
 			} else {
-				if (verbose == true) {
+				if (tries % 1000000 == 0) {
 					cout << "[" << tries << "] - FAILED ATTEMPT - " << pass << endl;
 				}
 			}
 		}
 	}else{
-		vector<char> alphabet;
 		for (char c = 'A'; c <= 'Z'; c++) { 
   			alphabet.push_back(c);
     	}  
@@ -93,25 +80,23 @@ void md5_crack(string hash, string filename) {
 		cout << "Generating data from \"";
 		for(int i=0; i<alphabet.size(); i++){ cout << alphabet[i] << " "; }
 		cout << "\" ..." << endl;
-		getCombination(alphabet, PASSWORDLEN);
-		cout << "Password with length " << PASSWORDLEN << " has " << allData.size() << " of combinations" << endl;
-		
-		cout << "Cracking ..." << endl << endl;
-		while(tries < allData.size()) {
-			if(allData[tries][0] == 'm'){
-				cout << allData[tries] << endl;
-			}
-			string hash_sum = md5(allData[tries]);
+
+		for (long long i = 0; i<9999999999ULL; i++) {
+			string cand = customToString(i);
+			string hash_sum = md5(cand);
 			if (hash_sum == hash) {
-				cout << "[" << tries << "] - PASSWORD FOUND - " << allData[tries] << endl;
+				cout << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
 				exit(0);
-			} else {
-				if (verbose == true) {
-					cout << "[" << tries << "] - FAILED ATTEMPT - " << allData[tries] << endl;
-				}
+			} 
+				
+			if (i % 1000000 == 0) {
+				cout << "\ncompleted " << i;
 			}
-			tries++;
-		}
-		
+			if (i % 100000 == 0) {
+				cout << " .";
+				cout.flush();
+			}
+		}   
 	}
+
 }
