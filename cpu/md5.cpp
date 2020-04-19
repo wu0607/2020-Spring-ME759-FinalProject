@@ -126,6 +126,7 @@ void MD5::encode(uint1 output[], const uint4 input[], size_type len)
 //////////////////////////////
  
 // apply MD5 algo on a block
+// Todo use naive way instead of unrolling for comparison
 void MD5::transform(const uint1 block[blocksize])
 {
   uint4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];

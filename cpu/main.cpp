@@ -6,6 +6,7 @@
 #include <vector>
 #include "md5.h"
 #include "util.h"
+#include "omp.h"
 #define PASSWORDLEN 4
 
 using namespace std;
@@ -39,6 +40,7 @@ int main(int argc, char* argv[]) {
 			cout << "Hashing algorithm: MD5" << endl;
 			cout << "HashCode: " << hash <<endl;
 			cout << "Filename: " << dict<<endl;
+			// Todo time measurement
 			md5_crack(hash, dict);
 		}
 
@@ -80,23 +82,28 @@ void md5_crack(string hash, string filename) {
 		cout << "Generating data from \"";
 		for(int i=0; i<alphabet.size(); i++){ cout << alphabet[i] << " "; }
 		cout << "\" ..." << endl;
-
-		for (long long i = 0; i<9999999999ULL; i++) {
-			string cand = customToString(i);
-			string hash_sum = md5(cand);
-			if (hash_sum == hash) {
-				cout << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
-				exit(0);
-			} 
-				
-			if (i % 1000000 == 0) {
-				cout << "\ncompleted " << i;
+		 
+		#pragma omp parallel 
+		{
+			#pragma for schedule(dynamic)
+			for (long long i = 0; i<9999999999ULL; i++) {
+				// To do use max length to maximize thread util
+				string cand = customToString(i);
+				string hash_sum = md5(cand);
+				if (hash_sum == hash) {
+					cout << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
+					exit(0);
+				} 
+					
+				if (i % 1000000 == 0) {
+					cout << endl << omp_get_thread_num() << "completed " << i;
+				}
+				if (i % 100000 == 0) {
+					cout << " .";
+					cout.flush();
+				}
 			}
-			if (i % 100000 == 0) {
-				cout << " .";
-				cout.flush();
-			}
-		}   
+		}
 	}
 
 }
