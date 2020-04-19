@@ -80,15 +80,15 @@ void md5_crack(string hash, string filename) {
 		}
 	}else{
 		vector<char> alphabet;
-		// for (char c = 'A'; c <= 'Z'; c++) { 
-  		// 	alphabet.push_back(c);
-    	// }  
+		for (char c = 'A'; c <= 'Z'; c++) { 
+  			alphabet.push_back(c);
+    	}  
 		for (char c = 'a'; c <= 'z'; c++) { 
   			alphabet.push_back(c);
     	}  
-		// for (int i=0; i<=9; i++) { 
-  		// 	alphabet.push_back('0' + i);
-    	// }  
+		for (int i=0; i<=9; i++) { 
+  			alphabet.push_back('0' + i);
+    	}  
 		
 		cout << "Generating data from \"";
 		for(int i=0; i<alphabet.size(); i++){ cout << alphabet[i] << " "; }
