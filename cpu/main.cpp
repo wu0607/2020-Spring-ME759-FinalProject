@@ -1,8 +1,9 @@
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <cstring>
 #include <fstream>
-#include <boost/algorithm/string.hpp>
+// #include <boost/algorithm/string.hpp>
 #include <vector>
 #include "md5.h"
 #include "util.h"
@@ -35,7 +36,9 @@ int main(int argc, char* argv[]) {
 			cout << "File not exist, generate data recurrsively" << endl;
 		}
 			
-		boost::to_upper(type);
+		// boost::to_upper(type);
+		std::transform(type.begin(), type.end(), type.begin(), ::toupper);
+
 		if(type == "MD5"){
 			cout << "Hashing algorithm: MD5" << endl;
 			cout << "HashCode: " << hash <<endl;
