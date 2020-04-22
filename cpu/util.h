@@ -6,11 +6,9 @@
 
 using namespace std;
 
-// all combinations of input //
-extern vector<char> allDataTmp;
-extern vector<string> allData;
+// variable
 extern vector<char> alphabet;
 
-void saveToVector(const vector<char>& v);
-void getCombination(vector<char> alphabet, int k);
+// function
+void showHelper();
 string customToString(long long val);
