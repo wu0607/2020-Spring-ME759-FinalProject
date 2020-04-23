@@ -6,7 +6,7 @@
 #include <math.h>
 #include <vector>
 #include <chrono>
-#include "omp.h"
+#include <mpi.h>
 
 // custom library
 #include "md5.h"
@@ -17,14 +17,12 @@ using chrono::high_resolution_clock;
 using chrono::duration;
 
 vector<char> alphabet;
+double startTime;
 
 void md5_crack(string hash, string file);
 
 int main(int argc, char* argv[]) {
-	// timing variable
-    high_resolution_clock::time_point start;
-    high_resolution_clock::time_point end;
-    duration<double, std::milli> duration_sec;
+	MPI_Init(&argc, &argv);
 
 	if(argc == 3 || argc == 4) {
 		string type = argv[1];
@@ -43,11 +41,10 @@ int main(int argc, char* argv[]) {
 			cout << "HashCode: " << hash <<endl;
 			if (dict != "")	cout << "Filename: " << dict <<endl;
 			
-			start = high_resolution_clock::now(); // Get the starting timestamp
+			
+			startTime = MPI_Wtime();
 			md5_crack(hash, dict);
-			end = high_resolution_clock::now(); // Get the ending timestamp
-			duration_sec = std::chrono::duration_cast<duration<double, std::milli> >(end - start);
-			cout << duration_sec.count()/1000 << " sec" << endl; // ms
+			
 		}
 
 	} else {
@@ -55,8 +52,35 @@ int main(int argc, char* argv[]) {
 	}
 }
 
+
+void run_MPI(int rank, int size, int maxVal, string hash){
+	long long start = maxVal / size * rank;
+	long long end = maxVal / size * (rank + 1);
+	for (long long i = start; i < end; i++) {
+			string cand = customToString(i);
+			string hash_sum = md5(cand);
+			if (hash_sum == hash) {
+				cout << "Rank" << rank << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
+				cout << MPI_Wtime() - startTime << "sec" << endl;
+				cout.flush();
+				int err;
+				MPI_Abort(MPI_COMM_WORLD, err);
+			} 
+				
+			// if (i % 10000000 == 0) {
+			// 	cout << endl << omp_get_thread_num() << "completed " << i;
+			// }
+			// if (i % 5000000 == 0) {
+			// 	cout << " .";
+			// 	cout.flush();
+			// }
+		}
+}
+
 void md5_crack(string hash, string filename) {
 	int tries = 0;
+	int size, rank;
+
 	if(filename != ""){ // direct dictionary mapping
 		cout << "Cracking..." << endl << endl;
 		std::ifstream file(filename);
@@ -90,30 +114,13 @@ void md5_crack(string hash, string filename) {
 		}
 		cout << "\" ..." << endl;
 		 
-		volatile bool find = false;
-		long long maxVal = (long long)pow (alphabet.size(), PASSWORD_LEN);
-		cout << maxVal << endl;
-		#pragma omp parallel for shared(find) schedule(dynamic)
-		for (long long i = 0; i<maxVal; i++) {
-			if (find){
-				continue;
-			}
-			string cand = customToString(i);
-			string hash_sum = md5(cand);
-			if (hash_sum == hash) {
-				cout << "T" << omp_get_thread_num() << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
-				cout.flush();
-				find = true;
-			} 
-				
-			// if (i % 10000000 == 0) {
-			// 	cout << endl << omp_get_thread_num() << "completed " << i;
-			// }
-			// if (i % 5000000 == 0) {
-			// 	cout << " .";
-			// 	cout.flush();
-			// }
-		}
+		long long maxVal = (long long)pow (CONST_CHARSET_LENGTH, PASSWORD_LEN);
+		cout << "Total combinations:" << maxVal << endl;
+		MPI_Comm_size(MPI_COMM_WORLD, &size);
+		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+		cout << "MPI size: " << size << endl;
+		run_MPI(rank, size, maxVal, hash);
+		MPI_Finalize();
 		
 	}
 
