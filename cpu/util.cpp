@@ -7,7 +7,7 @@ void showHelper() {
 
 string customToString(long long val) { 
     string ret;
-    static const size_t size = alphabet.size() -1;
+    static const size_t size = alphabet.size();
     while (val) { 
         ret += alphabet[val % size];
         val /= size;

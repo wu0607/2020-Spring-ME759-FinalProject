@@ -89,7 +89,6 @@ void md5_crack(string hash, string filename) {
   			alphabet.push_back('0' + i);
     	}  
 		
-		cout << "vector size:" << alphabet.size() << CONST_CHARSET_LENGTH << endl;
 		cout << "Generating data from \"";
 		for(int i=0; i<alphabet.size(); i++) { 
 			cout << alphabet[i]; 
@@ -97,7 +96,8 @@ void md5_crack(string hash, string filename) {
 		cout << "\" ..." << endl;
 		 
 		volatile bool find = false;
-		long long maxVal = (long long)pow (CONST_CHARSET_LENGTH, PASSWORD_LEN);
+		long long maxVal = (long long)pow (alphabet.size(), PASSWORD_LEN);
+		cout << maxVal << endl;
 		#pragma omp parallel for shared(find) schedule(dynamic)
 		for (long long i = 0; i<maxVal; i++) {
 			if (find){
