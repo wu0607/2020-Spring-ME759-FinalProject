@@ -1,7 +1,8 @@
-all: md5
+all: mpi openmp
 
-md5:
-	mpicxx mainMPI.cpp md5.cpp util.cpp -o md5craker -O3
-	# g++ main.cpp md5.cpp util.cpp -fopenmp -o md5craker -O3
+mpi:
+	mpicxx mainMPI.cpp md5.cpp util.cpp -o md5craker_mpi -O3
+openmp:
+	g++ mainOpenMP.cpp md5.cpp util.cpp -lomp -o md5craker_omp -O3
 clean:
 	rm md5craker *.out *.err
