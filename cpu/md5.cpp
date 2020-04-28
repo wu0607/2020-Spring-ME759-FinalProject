@@ -167,11 +167,11 @@ void MD5::update(const unsigned char input[], size_type length)
   {
     // fill buffer first, transform
     memcpy(&buffer[index], input, firstpart);
-    transform(buffer);
+    processBlock(buffer);
  
     // transform chunks of blocksize (64 bytes)
     for (i = firstpart; i + blocksize <= length; i += blocksize)
-      transform(&input[i]);
+      processBlock(&input[i]);
  
     index = 0;
   }

@@ -12,11 +12,6 @@
 #include "md5.h"
 #include "util.h"
 
-// custom define
-#define PASSWORD_LEN 4
-#define CONST_CHARSET "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-#define CONST_CHARSET_LENGTH (sizeof(CONST_CHARSET) - 1)
-
 using namespace std;
 using chrono::high_resolution_clock;
 using chrono::duration;
