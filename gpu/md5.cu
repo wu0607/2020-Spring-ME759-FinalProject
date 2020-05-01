@@ -1,36 +1,43 @@
 #include <stdio.h>
- #include <time.h>
- #include <stdlib.h>
- #include <stdint.h>
+#include <time.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+#include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
+#include <curand_kernel.h>
+#include <device_functions.h>
+
+#define CHECK_ERROR(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true){
+    if(code != cudaSuccess){
+        std::cerr << "GPUassert: " << cudaGetErrorString(code) << " " << file << " " << line << std::endl;
+        if(abort) exit(code);
+    }
+}
  
- #include <cuda_runtime.h>
- #include <cuda_runtime_api.h>
- #include <curand_kernel.h>
- #include <device_functions.h>
- 
-// MD5 Low Level Operations
+
 __device__ inline uint32_t F(uint32_t x, uint32_t y, uint32_t z) {
-  return z ^ (x & (y ^ z));
+    return z ^ (x & (y ^ z));
 }
  
 __device__ inline uint32_t G(uint32_t x, uint32_t y, uint32_t z) {
-  return y ^ (z & (x ^ y));
+    return y ^ (z & (x ^ y));
 }
  
 __device__ inline uint32_t H(uint32_t x, uint32_t y, uint32_t z) {
-  return x ^ y ^ z;
+    return x ^ y ^ z;
 }
  
 __device__ inline uint32_t I(uint32_t x, uint32_t y, uint32_t z) {
-  return y ^ (x | ~z);
+    return y ^ (x | ~z);
 }
  
 __device__ inline uint32_t rotate_left(uint32_t x, int n) {
-  return (x << n) | (x >> (32-n));
+    return (x << n) | (x >> (32-n));
 }
 
- __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a1, uint32_t *b1, uint32_t *c1, uint32_t *d1)
- {
+ __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a1, uint32_t *b1, uint32_t *c1, uint32_t *d1) {
      // Constants
     uint32_t md5_constants[64] = {
         0xd76aa478,0xe8c7b756,0x242070db,0xc1bdceee,0xf57c0faf,0x4787c62a,
@@ -61,7 +68,7 @@ __device__ inline uint32_t rotate_left(uint32_t x, int n) {
     uint32_t b = 0;
     uint32_t c = 0;
     uint32_t d = 0;
-    //  decode(x, block, 64); // extract block into x
+    
     uint32_t vals[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0};
  
     int i = 0;
@@ -69,54 +76,53 @@ __device__ inline uint32_t rotate_left(uint32_t x, int n) {
         vals[i / 4] |= data[i] << ((i % 4) * 8);
     }
    
-   vals[i / 4] |= 0x80 << ((i % 4) * 8);
-   uint32_t bitlen = length * 8;
-   vals[14] = bitlen;
-   vals[15] = 0;
-
-   //Initialize hash value for this chunk:
-   a = a0;
-   b = b0;
-   c = c0;
-   d = d0;
-
-   for (int i = 0; i < 64; i++) {
-       int round = i >> 4;
-       int bufferIdx = i;
-       int shiftIdx = (round << 2) | (i & 3);
-       uint32_t tmp = 0;
-       switch (round)
-       {
-       case 0: // 0 - 15 F
-           bufferIdx = i;
-           tmp = F(b, c, d);
-           break;
-       case 1: // 16 - 31 G
-           bufferIdx = (i*5 + 1) % 16;
-           tmp = G(b, c, d);
-           break;
-       case 2: // 32 - 47 H
-           bufferIdx = (i*3 + 5) % 16;
-           tmp = H(b, c, d);
-           break;
-       case 3: // 48 - 63 I
-           bufferIdx = (i*7) % 16;
-           tmp = I(b, c, d);
-           break;
-       }
-       tmp = tmp + a + md5_constants[i] + vals[bufferIdx];
-       a = d;
-       d = c;
-       c = b;
-       b = b + rotate_left(tmp, md5_shift_amounts[shiftIdx]);
-   }
-   a += a0;
-   b += b0;
-   c += c0;
-   d += d0;
-
-   *a1 = a;
-   *b1 = b;
-   *c1 = c;
-   *d1 = d;
- }
+    vals[i / 4] |= 0x80 << ((i % 4) * 8);
+    uint32_t bitlen = length * 8;
+    vals[14] = bitlen;
+    vals[15] = 0;
+ 
+    a = a0;
+    b = b0;
+    c = c0;
+    d = d0;
+ 
+    for (int i = 0; i < 64; i++) {
+        int round = i >> 4;
+        int bufferIdx = i;
+        int shiftIdx = (round << 2) | (i & 3);
+        uint32_t tmp = 0;
+        switch (round)
+        {
+        case 0: // 0 - 15 F
+            bufferIdx = i;
+            tmp = F(b, c, d);
+            break;
+        case 1: // 16 - 31 G
+            bufferIdx = (i*5 + 1) % 16;
+            tmp = G(b, c, d);
+            break;
+        case 2: // 32 - 47 H
+            bufferIdx = (i*3 + 5) % 16;
+            tmp = H(b, c, d);
+            break;
+        case 3: // 48 - 63 I
+            bufferIdx = (i*7) % 16;
+            tmp = I(b, c, d);
+            break;
+        }
+        tmp = tmp + a + md5_constants[i] + vals[bufferIdx];
+        a = d;
+        d = c;
+        c = b;
+        b = b + rotate_left(tmp, md5_shift_amounts[shiftIdx]);
+    }
+    a += a0;
+    b += b0;
+    c += c0;
+    d += d0;
+ 
+    *a1 = a;
+    *b1 = b;
+    *c1 = c;
+    *d1 = d;
+}

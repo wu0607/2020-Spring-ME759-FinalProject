@@ -24,7 +24,8 @@
 #define TOTAL_THREADS 512UL
 #define HASHES_PER_KERNEL 128UL
 
-#include "md5.cu"
+// #include "md5.cu"
+#include "md5_unroll.cu"
 using namespace std;
 
 /* Global variables */
