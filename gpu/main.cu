@@ -26,6 +26,17 @@
 
  #include "md5.cu"
 
+ #define ERROR_CHECK(X) { gpuAssert((X), __FILE__, __LINE__); }
+
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true){
+  if(code != cudaSuccess){
+    std::cout << "Error: " << cudaGetErrorString(code) << " " << file << " " << line << std::endl;
+    if(abort){
+      exit(code);
+    }
+  }
+}
+
  int main(int argc, char* argv[]){
    /* Check arguments */
    if(argc != 2 || strlen(argv[1]) != 32){
