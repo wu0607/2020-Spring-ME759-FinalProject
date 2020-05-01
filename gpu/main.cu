@@ -104,7 +104,32 @@ void showHelper() {
     cout << "Usage: ./md5craker_gpu [HASH]" << endl;
     exit(1);
 }
+
+char hex2Bin(char ch){
+    if (ch >= '0' && ch <= '9') return ch - '0';
+    if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
+    if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+    return 0;
+}
  
+void hashcode2Int(char* md5, uint *md5Hash){
+    for (int i = 0; i < 32; i += 2) {
+        uint A = uint(hex2Bin(md5[i]));
+        uint B = uint(hex2Bin(md5[i+1]));
+        uint C = A * 16 + B;
+        C = C << 24;
+        if(i < 8) {
+            md5Hash[0] = (md5Hash[0] >> 8) | C;
+        } else if (i < 16) {
+            md5Hash[1] = (md5Hash[1] >> 8) | C;
+        } else if (i < 24) {
+            md5Hash[2] = (md5Hash[2] >> 8) | C;
+        } else if(i < 32) {
+            md5Hash[3] = (md5Hash[3] >> 8) | C;
+        }
+    }
+}
+
 int main(int argc, char* argv[]){
     if(argc != 2 || strlen(argv[1]) != 32){
         showHelper();
@@ -123,6 +148,8 @@ int main(int argc, char* argv[]){
     
     /* Hash stored as u32 integers */
     uint32_t md5Hash[4];
+    hashcode2Int(argv[1], md5Hash);
+ 
    
     /* Fill memory */
     memset(g_word, 0, CONST_WORD_LIMIT);
@@ -189,7 +216,7 @@ int main(int argc, char* argv[]){
             
             /* Check result */
             if(found = *g_cracked != 0){     
-                cout << "Notice: cracked " << g_cracked << endl; 
+                cout << "===== Notice: cracked " << g_cracked << " =====" << endl; 
                 break;
             }
         }
