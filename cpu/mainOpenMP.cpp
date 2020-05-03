@@ -98,7 +98,7 @@ void md5_crack(string hash, string filename) {
 		high_resolution_clock::time_point start = high_resolution_clock::now();
     	high_resolution_clock::time_point end;
 		
-		#pragma omp parallel for shared(find) schedule(dynamic) reduction(+:totalCount)
+		#pragma omp parallel for shared(find) schedule(dynamic) reduction(+:totalCount) 
 		for (long long i = 0; i<maxVal; i++) {
 			if (find){
 				if(!duration_sec){
@@ -112,6 +112,7 @@ void md5_crack(string hash, string filename) {
 			string hash_sum = md5(cand);
 			if (hash_sum == hash) {
 				cout << "T" << omp_get_thread_num() << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
+				cout << "threadNum: " << omp_get_num_threads() << endl;
 				cout.flush();
 				find = true;
 			} 
