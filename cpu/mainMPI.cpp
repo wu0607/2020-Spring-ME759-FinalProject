@@ -18,6 +18,8 @@ using chrono::duration;
 
 vector<char> alphabet;
 double startTime;
+long long totalCount = 0;
+long long localCount = 0;
 
 void md5_crack(string hash, string file);
 
@@ -62,11 +64,17 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 	for (long long i = start; i < end; i++) {
 			string cand = customToString(i);
 			string hash_sum = md5(cand);
+			localCount += 1;
+			MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+			
 			if (hash_sum == hash) {
 				cout << "Rank" << rank << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
-				cout << MPI_Wtime() - startTime << "sec" << endl;
+				double duration_sec = MPI_Wtime() - startTime;
+				cout << duration_sec << "sec" << endl;
 				cout.flush();
 				int err;
+				cout << "localCount:" << localCount << endl;
+				cout << "totalCount:" << totalCount << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
 				MPI_Abort(MPI_COMM_WORLD, err);
 			} 
 				
@@ -126,6 +134,7 @@ void md5_crack(string hash, string filename) {
 
 		run_MPI(rank, size, maxVal, hash);
 		MPI_Finalize();
+		cout << "program ends" << endl;
 		
 	}
 
