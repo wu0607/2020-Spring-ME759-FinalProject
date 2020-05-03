@@ -63,25 +63,33 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 	long long localCount = 0;
 	long long start = maxVal / size * rank;
 	long long end = maxVal / size * (rank + 1);
-	
-	startTime = MPI_Wtime();
+	volatile bool find = false;
+	volatile double duration_sec = 0;
+    
+    startTime = MPI_Wtime();
+	#pragma omp parallel for shared(find, duration_sec) schedule(dynamic) reduction(+:localCount)
 	for (long long i = start; i < end; i++) {
+		if (find){
+			continue;
+		}
 		string cand = customToString(i);
 		string hash_sum = md5(cand);
 		localCount += 1;
-		MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-		
 		if (hash_sum == hash) {
 			cout << "Rank" << rank << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
-			double duration_sec = MPI_Wtime() - startTime;
+			duration_sec = MPI_Wtime() - startTime;
 			cout << duration_sec << "sec" << endl;
 			cout.flush();
 			int err;
 			cout << "localCount:" << localCount << " ;threadNum: " << omp_get_num_threads() << endl;
-			cout << "totalCount:" << totalCount << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
-			MPI_Abort(MPI_COMM_WORLD, err);
+			cout << "duration_sec:" << duration_sec << endl;
+			find = true;
 		} 
 	}
+	
+	MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+	cout << "localCount:" << localCount << " totalCount: " << totalCount << " duration_sec:" << duration_sec << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
+
 }
 
 void md5_crack(string hash, string filename) {
