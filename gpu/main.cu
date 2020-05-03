@@ -22,9 +22,9 @@
 #define WORD_LENGTH_MAX 8
 
 // hash number workload for each gpu launch
-// OTAL_BLOCKS * TOTAL_THREADS * HASHES_PER_KERNEL
+// TOTAL_BLOCKS * THREAD_NUM * HASHES_PER_KERNEL
 #define TOTAL_BLOCKS 16384UL
-#define TOTAL_THREADS 512UL
+#define THREAD_NUM 768UL
 #define HASHES_PER_KERNEL 128UL
 
 // #include "md5.cu"
@@ -39,7 +39,7 @@ char g_cracked[WORD_LIMIT];
 __device__ char g_deviceCharset[CHARSET_LIMIT];
 __device__ char g_deviceCracked[WORD_LIMIT];
 
-__global__ bool next(uint8_t* length, char* word, uint32_t increment){
+__device__ __host__ bool next(uint8_t* length, char* word, uint32_t increment){
     int idx = 0;
     // increment 1
     while(increment > 0 && idx < WORD_LIMIT){
@@ -67,34 +67,35 @@ __global__ bool next(uint8_t* length, char* word, uint32_t increment){
 __global__ void md5Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01, uint32_t hash02, uint32_t hash03, uint32_t hash04){
     uint32_t idx = (blockIdx.x * blockDim.x + threadIdx.x) * HASHES_PER_KERNEL;
     
-    /* Shared variables */
+    // Shared variables
     __shared__ char sharedCharset[CHARSET_LIMIT];
     
-    /* Thread variables */
+    // Thread variables
     char threadCharsetWord[WORD_LIMIT];
     char threadTextWord[WORD_LIMIT];
     uint8_t threadWordLength;
     uint32_t threadHash01, threadHash02, threadHash03, threadHash04;
     
-    /* Copy everything to local memory */
+    // use local memory access instead of global access in device
     memcpy(threadCharsetWord, charsetWord, WORD_LIMIT);
     memcpy(&threadWordLength, &wordLength, sizeof(uint8_t));
     memcpy(sharedCharset, g_deviceCharset, sizeof(uint8_t) * CHARSET_LIMIT);
     
-    /* Increment current word by thread index */
+    // Find out which word shoud be the start word
     next(&threadWordLength, threadCharsetWord, idx);
     
+    #pragma unroll
     for(uint32_t hash = 0; hash < HASHES_PER_KERNEL; hash++){
         // get current word
         for(uint32_t i = 0; i < threadWordLength; i++){
             threadTextWord[i] = sharedCharset[threadCharsetWord[i]];
-            if (idx == 0) {
-                printf("[%d]%c ", threadCharsetWord[i], threadTextWord[i]);
-            }
+            // if (idx == 0) {
+                // printf("[%d]%c ", threadCharsetWord[i], threadTextWord[i]);
+            // }
         }
-        if (idx == 0) {
-            printf("\n");
-        }
+        // if (idx == 0) {
+            // printf("\n");
+        // }
 
         
         md5Hash((unsigned char*)threadTextWord, threadWordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04);   
@@ -103,13 +104,13 @@ __global__ void md5Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01,
             memcpy(g_deviceCracked, threadTextWord, threadWordLength);
         }
         
-        int tmp = threadWordLength;
+        // int tmp = threadWordLength;
         if(!next(&threadWordLength, threadCharsetWord, 1)){
             break;
         }
-        if (tmp != threadWordLength && idx == 0) {
-            printf("original len %d after len %d\n", tmp, threadWordLength);
-        }
+        // if (tmp != threadWordLength && idx == 0) {
+            // printf("original len %d after len %d\n", tmp, threadWordLength);
+        // }
     }
 }
 
@@ -152,34 +153,32 @@ int main(int argc, char* argv[]){
     int devices;
     CHECK_ERROR(cudaGetDeviceCount(&devices));
     
-    CHECK_ERROR(cudaSetDeviceFlags(cudaDeviceScheduleSpin)); // not sure use it or not
+    CHECK_ERROR(cudaSetDeviceFlags(cudaDeviceScheduleSpin));
     
     cout << "Notice: " << devices << " device(s) found" << endl;
     cout << argv[1] << endl;
     
-    /* Hash stored as u32 integers */
+    // convert target hash to uint32 array
     uint32_t md5Hash[4];
     hashcode2Int(argv[1], md5Hash);
  
    
-    /* Fill memory */
+    // global variable init
     memset(g_word, 0, WORD_LIMIT);
     memset(g_cracked, 0, WORD_LIMIT);
     memcpy(g_charset, CHARSET, CHARSET_LENGTH);
-    
     g_wordLength = WORD_LENGTH_MIN;
+
     
     cudaSetDevice(0);
     
-    /* Time */
+    // time
     cudaEvent_t startTime;
     cudaEvent_t endTime;
-    
     cudaEventCreate(&startTime);
     cudaEventCreate(&endTime);
     cudaEventRecord(startTime);
    
-    /* Current word is different on each device */
     char** words = new char*[devices];
     long totalCount = 0;
    
@@ -190,52 +189,43 @@ int main(int argc, char* argv[]){
         for(int device = 0; device < devices; device++){
             CHECK_ERROR(cudaSetDevice(device));
             
-            /* Copy current data */
+            // update current data for launching kernel func
             CHECK_ERROR(cudaMemcpyToSymbol(g_deviceCharset, g_charset, sizeof(uint8_t) * CHARSET_LIMIT, 0, cudaMemcpyHostToDevice));
             CHECK_ERROR(cudaMemcpyToSymbol(g_deviceCracked, g_cracked, sizeof(uint8_t) * WORD_LIMIT, 0, cudaMemcpyHostToDevice));
             CHECK_ERROR(cudaMalloc((void**)&words[device], sizeof(uint8_t) * WORD_LIMIT));
             CHECK_ERROR(cudaMemcpy(words[device], g_word, sizeof(uint8_t) * WORD_LIMIT, cudaMemcpyHostToDevice)); // use updated g_word as new start word
           
-            /* Start kernel */
-            md5Crack<<<TOTAL_BLOCKS, TOTAL_THREADS>>>(g_wordLength, words[device], md5Hash[0], md5Hash[1], md5Hash[2], md5Hash[3]);
+            md5Crack<<<TOTAL_BLOCKS, THREAD_NUM>>>(g_wordLength, words[device], md5Hash[0], md5Hash[1], md5Hash[2], md5Hash[3]);
             
-            /* Global increment */
-            result = next(&g_wordLength, g_word, TOTAL_THREADS * HASHES_PER_KERNEL * TOTAL_BLOCKS);
-            cout << "now g_wordLength = " << (uint32_t)g_wordLength << endl;
-            for(int i = 0; i < g_wordLength; i++){
-                cout << g_charset[g_word[i]] << " ";
-            }
-            cout << endl;
+            // global monitor current word
+            result = next(&g_wordLength, g_word, THREAD_NUM * HASHES_PER_KERNEL * TOTAL_BLOCKS);
+            // cout << "now g_wordLength = " << (uint32_t)g_wordLength << endl;
+            // for(int i = 0; i < g_wordLength; i++){
+                // cout << g_charset[g_word[i]] << " ";
+            // }
+            // cout << endl;
             totalCount += 1;
         }
 
-        /* Display progress */
-        char word[WORD_LIMIT];
-        
+        char currentWord[WORD_LIMIT];
         for(int i = 0; i < g_wordLength; i++){
-            word[i] = g_charset[g_word[i]];
+            currentWord[i] = g_charset[g_word[i]];
         }
-        
-        cout << totalCount << " Notice: currently at " << string(word, g_wordLength) << " (" << (uint32_t)g_wordLength << ")" << endl;
+        cout << totalCount << " currently at " << string(currentWord, g_wordLength) << " word length = " << (uint32_t)g_wordLength << endl;
     
         
         for(int device = 0; device < devices; device++){
             CHECK_ERROR(cudaSetDevice(device));
-            
-            /* Synchronize now */
             CHECK_ERROR(cudaDeviceSynchronize());
-            
-            /* Copy result */
             CHECK_ERROR(cudaMemcpyFromSymbol(g_cracked, g_deviceCracked, sizeof(uint8_t) * WORD_LIMIT, 0, cudaMemcpyDeviceToHost)); 
-            
-            /* Check result */
+            // check result
             if(found = *g_cracked != 0){     
                 cout << "===== Notice: cracked " << g_cracked << " =====" << endl; 
                 break;
             }
         }
         
-        // check the result here
+        // final check the result here
         if(!result || found){
             if(!result && !found){
               cout << "Notice: found nothing (host)" << endl;
@@ -252,7 +242,7 @@ int main(int argc, char* argv[]){
     float ms;
     cudaEventElapsedTime(&ms, startTime, endTime);
     cout << "Elapsed time: " << ms << " ms" << endl;
-    totalCount = totalCount * TOTAL_THREADS * HASHES_PER_KERNEL * TOTAL_BLOCKS;
+    totalCount = totalCount * THREAD_NUM * HASHES_PER_KERNEL * TOTAL_BLOCKS;
     cout << "totalCount: " << totalCount << " throughput= " << ((double)totalCount*1000.0/ms) << " #hash/sec" << endl;
 
     // free memory
