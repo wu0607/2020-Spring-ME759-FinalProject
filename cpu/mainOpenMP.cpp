@@ -92,11 +92,22 @@ void md5_crack(string hash, string filename) {
 		 
 		volatile bool find = false;
 		long long maxVal = (long long)pow (CONST_CHARSET_LENGTH, PASSWORD_LEN);
-		#pragma omp parallel for shared(find) schedule(dynamic)
+		cout << "maxVal: " << maxVal << endl;
+		long long totalCount = 0;
+		double duration_sec = 0;
+		high_resolution_clock::time_point start = high_resolution_clock::now();
+    	high_resolution_clock::time_point end;
+		
+		#pragma omp parallel for shared(find) schedule(dynamic) reduction(+:totalCount)
 		for (long long i = 0; i<maxVal; i++) {
 			if (find){
+				if(!duration_sec){
+					end = high_resolution_clock::now(); 
+					duration_sec = std::chrono::duration_cast<duration<double, std::milli> >(end - start).count()/1000;
+				}
 				continue;
 			}
+			totalCount += 1;
 			string cand = customToString(i);
 			string hash_sum = md5(cand);
 			if (hash_sum == hash) {
@@ -104,15 +115,10 @@ void md5_crack(string hash, string filename) {
 				cout.flush();
 				find = true;
 			} 
-				
-			// if (i % 10000000 == 0) {
-			// 	cout << endl << omp_get_thread_num() << "completed " << i;
-			// }
-			// if (i % 5000000 == 0) {
-			// 	cout << " .";
-			// 	cout.flush();
-			// }
 		}
+
+		cout << "totalCount: " << totalCount << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
+		
 		
 	}
 
