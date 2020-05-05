@@ -21,11 +21,6 @@ vector<char> alphabet;
 void md5_crack(string hash, string file);
 
 int main(int argc, char* argv[]) {
-	// timing variable
-    high_resolution_clock::time_point start;
-    high_resolution_clock::time_point end;
-    duration<double, std::milli> duration_sec;
-
 	if(argc == 3 || argc == 4) {
 		string type = argv[1];
 		string hash = argv[2];
@@ -33,7 +28,7 @@ int main(int argc, char* argv[]) {
 		if(argc == 4){
 			dict = argv[3];
 		}else{
-			cout << "File not exist, generate data recurrsively" << endl;
+			cout << "Password wordlist is not provided, generate data recurrsively" << endl;
 		}
 			
 		std::transform(type.begin(), type.end(), type.begin(), ::toupper);
@@ -43,11 +38,8 @@ int main(int argc, char* argv[]) {
 			cout << "HashCode: " << hash <<endl;
 			if (dict != "")	cout << "Filename: " << dict <<endl;
 			
-			start = high_resolution_clock::now(); // Get the starting timestamp
 			md5_crack(hash, dict);
-			end = high_resolution_clock::now(); // Get the ending timestamp
-			duration_sec = std::chrono::duration_cast<duration<double, std::milli> >(end - start);
-			cout << duration_sec.count()/1000 << " sec" << endl; // ms
+			
 		}
 
 	} else {
@@ -92,13 +84,13 @@ void md5_crack(string hash, string filename) {
 		 
 		volatile bool find = false;
 		long long maxVal = (long long)pow (CONST_CHARSET_LENGTH, PASSWORD_LEN);
-		cout << "maxVal: " << maxVal << endl;
+		cout << "Total combinations: " << maxVal << endl;
 		long long totalCount = 0;
 		double duration_sec = 0;
 		high_resolution_clock::time_point start = high_resolution_clock::now();
     	high_resolution_clock::time_point end;
 		
-		#pragma omp parallel for shared(find) schedule(dynamic) reduction(+:totalCount) 
+		#pragma omp parallel for shared(find) schedule(auto) reduction(+:totalCount) num_threads(12)
 		for (long long i = 0; i<maxVal; i++) {
 			if (find){
 				if(!duration_sec){
@@ -111,15 +103,15 @@ void md5_crack(string hash, string filename) {
 			string cand = customToString(i);
 			string hash_sum = md5(cand);
 			if (hash_sum == hash) {
-				cout << "T" << omp_get_thread_num() << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
-				cout << "threadNum: " << omp_get_num_threads() << endl;
+				cout << "*** Thread" << omp_get_thread_num() << "[" << i << "] - PASSWORD FOUND - " << cand << " ***" << endl;
+				// cout << "threadNum: " << omp_get_num_threads() << endl;
 				cout.flush();
 				find = true;
 			} 
 		}
 
-		cout << "totalCount: " << totalCount << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
-		
+		cout << "Duration = " << duration_sec << " sec" << endl;
+		cout << "Throughput = " << totalCount / duration_sec << " #hash/sec" << endl;
 		
 	}
 

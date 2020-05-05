@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
 		if(argc == 4){
 			dict = argv[3];
 		}else if(rank == 0){
-			cout << "File not exist, generate data recurrsively" << endl;
+			cout << "Password wordlist is not provided, generate data recurrsively" << endl;
 		}
 			
 		std::transform(type.begin(), type.end(), type.begin(), ::toupper);
@@ -60,27 +60,60 @@ int main(int argc, char* argv[]) {
 
 
 void run_MPI(int rank, int size, int maxVal, string hash){
+	// long long localCount = 0;
+	// long long start = maxVal / size * rank;
+	// long long end = maxVal / size * (rank + 1);
+	
+	// startTime = MPI_Wtime();
+	// for (long long i = start; i < end; i++) {
+	// 	string cand = customToString(i);
+	// 	string hash_sum = md5(cand);
+	// 	localCount += 1;
+	// 	MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+		
+	// 	if (hash_sum == hash) {
+	// 		cout << "Rank" << rank << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
+	// 		double duration_sec = MPI_Wtime() - startTime;
+	// 		cout << duration_sec << "sec" << endl;
+	// 		cout.flush();
+	// 		int err;
+	// 		cout << "localCount:" << localCount << " ;threadNum: " << omp_get_num_threads() << endl;
+	// 		cout << "totalCount:" << totalCount << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
+	// 		MPI_Abort(MPI_COMM_WORLD, err);
+	// 	} 
+	// }
+
 	long long localCount = 0;
 	long long start = maxVal / size * rank;
 	long long end = maxVal / size * (rank + 1);
-	
-	startTime = MPI_Wtime();
+	volatile bool find = false;
+	volatile double duration_sec = 0;
+
+    startTime = MPI_Wtime();
 	for (long long i = start; i < end; i++) {
+		if (find){
+			continue;
+		}
 		string cand = customToString(i);
 		string hash_sum = md5(cand);
 		localCount += 1;
-		MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-		
 		if (hash_sum == hash) {
-			cout << "Rank" << rank << "[" << i << "] - PASSWORD FOUND - " << cand << endl;
-			double duration_sec = MPI_Wtime() - startTime;
-			cout << duration_sec << "sec" << endl;
+			cout << "*** Rank" << rank << "[" << i << "] - PASSWORD FOUND - " << cand << " ***" << endl;
+			duration_sec = MPI_Wtime() - startTime;
+			// cout << duration_sec << "sec" << endl;
 			cout.flush();
 			int err;
-			cout << "localCount:" << localCount << " ;threadNum: " << omp_get_num_threads() << endl;
-			cout << "totalCount:" << totalCount << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
-			MPI_Abort(MPI_COMM_WORLD, err);
+			// cout << "localCount:" << localCount << " ;threadNum: " << omp_get_num_threads() << endl;
+			// cout << "duration_sec:" << duration_sec << endl;
+			find = true;
 		} 
+	}
+	
+	MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+	if(duration_sec){
+		// cout << "localCount:" << localCount << " totalCount: " << totalCount << " duration_sec:" << duration_sec << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
+		cout << "Duration = " << duration_sec << " sec" << endl;
+		cout << "Throughput = " << totalCount / duration_sec << " #hash/sec" << endl;
 	}
 }
 
@@ -125,12 +158,11 @@ void md5_crack(string hash, string filename) {
 				cout << alphabet[i]; 
 			}
 			cout << "\" ..." << endl;
-			cout << "Total combinations:" << maxVal << endl;
+			cout << "Total combinations: " << maxVal << endl;
 		}
 
 		run_MPI(rank, size, maxVal, hash);
 		MPI_Finalize();
-		
 	}
 
 }
