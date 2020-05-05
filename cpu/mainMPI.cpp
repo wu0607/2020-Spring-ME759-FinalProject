@@ -88,10 +88,18 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 	long long end = maxVal / size * (rank + 1);
 	volatile bool find = false;
 	volatile double duration_sec = 0;
-
+	int flag = 0; 
+	MPI_Request request;
+	
     startTime = MPI_Wtime();
 	for (long long i = start; i < end; i++) {
+		MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG , MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
+
 		if (find){
+			continue;
+		}
+		if(flag){
+			cout << "rank " << rank << "got flag" << endl;
 			continue;
 		}
 		string cand = customToString(i);
@@ -106,12 +114,17 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 			// cout << "localCount:" << localCount << " ;threadNum: " << omp_get_num_threads() << endl;
 			// cout << "duration_sec:" << duration_sec << endl;
 			find = true;
+			for (int r = 0; r < size; ++r) {
+				if(r != rank){
+           			MPI_Send(1, 1, MPI_INT, r, MPI_ANY_TAG , MPI_COMM_WORLD, &request);
+				}
+        	}
 		} 
 	}
 	
+	cout << "localCount:" << localCount << " totalCount: " << totalCount << " duration_sec:" << duration_sec << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
 	MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
 	if(duration_sec){
-		// cout << "localCount:" << localCount << " totalCount: " << totalCount << " duration_sec:" << duration_sec << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
 		cout << "Duration = " << duration_sec << " sec" << endl;
 		cout << "Throughput = " << totalCount / duration_sec << " #hash/sec" << endl;
 	}

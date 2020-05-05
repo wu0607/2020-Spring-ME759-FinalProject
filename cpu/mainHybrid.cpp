@@ -67,9 +67,12 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 	volatile double duration_sec = 0;
 
     startTime = MPI_Wtime();
-	#pragma omp parallel for shared(find, duration_sec) schedule(auto) reduction(+:localCount) num_threads(12)
+	#pragma omp parallel for shared(find) schedule(auto) reduction(+:localCount) num_threads(12)
 	for (long long i = start; i < end; i++) {
 		if (find){
+			continue;
+		}
+		if(totalCount){
 			continue;
 		}
 		string cand = customToString(i);
@@ -81,18 +84,23 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 			// cout << duration_sec << "sec" << endl;
 			cout.flush();
 			int err;
-			// cout << "localCount:" << localCount << " ;threadNum: " << omp_get_num_threads() << endl;
-			// cout << "duration_sec:" << duration_sec << endl;
+			cout << "localCount:" << localCount << "; threadNum: " << omp_get_num_threads() << endl;
+			cout << "duration_sec:" << duration_sec << endl;
 			find = true;
+			MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+
 		} 
 	}
 	
-	MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-	if(duration_sec){
-		// cout << "localCount:" << localCount << " totalCount: " << totalCount << " duration_sec:" << duration_sec << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
+	cout << "i am rank " << rank << endl;
+	// MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+	if(duration_sec != 0){
 		cout << "Duration = " << duration_sec << " sec" << endl;
 		cout << "Throughput = " << totalCount / duration_sec << " #hash/sec" << endl;
+		cout.flush();
 	}
+		cout << rank << " localCount:" << localCount << " totalCount: " << totalCount << " duration_sec:" << duration_sec << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
+
 }
 
 void md5_crack(string hash, string filename) {
