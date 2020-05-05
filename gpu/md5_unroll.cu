@@ -6,7 +6,6 @@
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 #include <curand_kernel.h>
-// #include <device_functions.h>
 
 #define CHECK_ERROR(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true){
@@ -66,7 +65,8 @@ __device__ inline void padding(uint32_t* x, unsigned char data[], uint32_t lengt
     x[15] = 0;
 }
 
-__device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a1, uint32_t *b1, uint32_t *c1, uint32_t *d1){
+// __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a1, uint32_t *b1, uint32_t *c1, uint32_t *d1){
+__device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *res){
     const uint32_t a0 = 0x67452301;
     const uint32_t b0 = 0xEFCDAB89;
     const uint32_t c0 = 0x98BADCFE;
@@ -80,16 +80,6 @@ __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a
     // padding the input string
     uint32_t x[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     padding(x, data, length);
-    // int i = 0;
-    // for(i=0; i < length; i++){ 
-    //     x[i / 4] |= data[i] << ((i % 4) * 8);
-    // }
-    
-    // x[i / 4] |= 0x80 << ((i % 4) * 8);
-
-    // uint32_t bitlen = length * 8;
-    // x[14] = bitlen;
-    // x[15] = 0;
 
     //Initialize hash value for this chunk:
     a = a0;
@@ -97,7 +87,8 @@ __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a
     c = c0;
     d = d0;
 
-    /* Round 1 */
+    // unroll boost performance 5.03x
+    // Round 1 
     #define S11 7
     #define S12 12
     #define S13 17
@@ -119,7 +110,7 @@ __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a
     FF (c, d, a, b, x[14], S13, 0xa679438e); // 15
     FF (b, c, d, a, x[15], S14, 0x49b40821); // 16
 
-    /* Round 2 */
+    // Round 2
     #define S21 5
     #define S22 9
     #define S23 14
@@ -141,7 +132,7 @@ __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a
     GG (c, d, a, b, x[ 7], S23, 0x676f02d9); // 31
     GG (b, c, d, a, x[12], S24, 0x8d2a4c8a); // 32
 
-    /* Round 3 */
+    // Round 3 
     #define S31 4
     #define S32 11
     #define S33 16
@@ -163,7 +154,7 @@ __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a
     HH (c, d, a, b, x[15], S33, 0x1fa27cf8); // 47
     HH (b, c, d, a, x[ 2], S34, 0xc4ac5665); // 48
     
-    /* Round 4 */
+    // Round 4
     #define S41 6
     #define S42 10
     #define S43 15
@@ -190,8 +181,12 @@ __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a
     c += c0;
     d += d0;
 
-    *a1 = a;
-    *b1 = b;
-    *c1 = c;
-    *d1 = d;
+    res[0] = a;
+    res[1] = b;
+    res[2] = c;
+    res[3] = d;
+    // *a1 = a;
+    // *b1 = b;
+    // *c1 = c;
+    // *d1 = d;
 }
