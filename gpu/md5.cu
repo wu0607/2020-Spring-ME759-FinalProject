@@ -6,7 +6,6 @@
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 #include <curand_kernel.h>
-// #include <device_functions.h>
 
 #define CHECK_ERROR(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true){
@@ -37,7 +36,21 @@ __device__ inline uint32_t rotate_left(uint32_t x, int n) {
     return (x << n) | (x >> (32-n));
 }
 
- __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *a1, uint32_t *b1, uint32_t *c1, uint32_t *d1) {
+__device__ inline void padding(uint32_t* x, unsigned char data[], uint32_t length) {
+    // padding the input string
+    int i = 0;
+    for(i=0; i < length; i++){
+        x[i / 4] |= data[i] << ((i % 4) * 8);
+    }
+    
+    x[i / 4] |= 0x80 << ((i % 4) * 8);
+
+    uint32_t bitlen = length * 8;
+    x[14] = bitlen;
+    x[15] = 0;
+}
+
+ __device__ inline void md5Hash(unsigned char* data, uint32_t length, uint32_t *res) {
      // Constants
     uint32_t md5_constants[64] = {
         0xd76aa478,0xe8c7b756,0x242070db,0xc1bdceee,0xf57c0faf,0x4787c62a,
@@ -69,17 +82,9 @@ __device__ inline uint32_t rotate_left(uint32_t x, int n) {
     uint32_t c = 0;
     uint32_t d = 0;
     
-    uint32_t vals[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0};
- 
-    int i = 0;
-    for(i=0; i < length; i++){
-        vals[i / 4] |= data[i] << ((i % 4) * 8);
-    }
-   
-    vals[i / 4] |= 0x80 << ((i % 4) * 8);
-    uint32_t bitlen = length * 8;
-    vals[14] = bitlen;
-    vals[15] = 0;
+    // padding the input string
+    uint32_t x[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    padding(x, data, length);
  
     a = a0;
     b = b0;
@@ -110,7 +115,7 @@ __device__ inline uint32_t rotate_left(uint32_t x, int n) {
             tmp = I(b, c, d);
             break;
         }
-        tmp = tmp + a + md5_constants[i] + vals[bufferIdx];
+        tmp = tmp + a + md5_constants[i] + x[bufferIdx];
         a = d;
         d = c;
         c = b;
@@ -121,8 +126,8 @@ __device__ inline uint32_t rotate_left(uint32_t x, int n) {
     c += c0;
     d += d0;
  
-    *a1 = a;
-    *b1 = b;
-    *c1 = c;
-    *d1 = d;
+    res[0] = a;
+    res[1] = b;
+    res[2] = c;
+    res[3] = d;
 }
