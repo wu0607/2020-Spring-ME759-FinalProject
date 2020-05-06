@@ -3,15 +3,12 @@
 
 class MD5 {
 public:
-  MD5();
   MD5(const std::string& text);
   void pipeline(const unsigned char *buf, int length);
   void pipeline(const char *buf, int length);
-  MD5& finsh();
   std::string hex2String() const;
 
 private:
-  void init();
   void processBlock(const unsigned char block[64]);
   static void padding(unsigned int output[], const unsigned char input[], int len);
   static void encode(unsigned char output[], const unsigned int input[], int len);
