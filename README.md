@@ -10,7 +10,7 @@ CPU version (Serial, OpenMP, MPI, Hybrid)
 ```
 cd cpu
 vim run.sh # modify md5hash you want to crack
-# default password length is 5, test longer please modify PASSWORD_LEN in util.h #3
+# default password length is 1~5, test longer please modify PASSWORD_LEN in util.h #3
 sbatch run.sh
 ```
 
