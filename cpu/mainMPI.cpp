@@ -96,10 +96,10 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 		MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG , MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
 
 		if(find){
-			continue;
+			break;
 		}
 		if(flag){
-			continue;
+			break;
 		}
 		string cand = customToString(i);
 		string hash_sum = md5(cand);
@@ -108,8 +108,8 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 			cout << "*** Rank" << rank << "[" << i << "] - PASSWORD FOUND - " << cand << " ***" << endl;
 			duration_sec = MPI_Wtime() - startTime;
 			cout.flush();
-			// cout << "localCount:" << localCount << " ;threadNum: " << omp_get_num_threads() << endl;
-			// cout << "duration_sec:" << duration_sec << endl;
+			cout << "localCount:" << localCount << " ;threadNum: " << omp_get_num_threads() << endl;
+			cout << "duration_sec:" << duration_sec << endl;
 			find = 1;
 			for (int r = 0; r < size; ++r) {
 				if(r != rank){

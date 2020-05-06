@@ -1,23 +1,10 @@
 #include "md5.h"
 #include <cstdio>
 
+// this code is mainly reference from https://tools.ietf.org/html/rfc1321
+
 // Constants
-#define S11 7
-#define S12 12
-#define S13 17
-#define S14 22
-#define S21 5
-#define S22 9
-#define S23 14
-#define S24 20
-#define S31 4
-#define S32 11
-#define S33 16
-#define S34 23
-#define S41 6
-#define S42 10
-#define S43 15
-#define S44 21
+
 
 
 inline uint32_t F(uint32_t x, uint32_t y, uint32_t z) {
@@ -65,12 +52,12 @@ MD5::MD5()
 MD5::MD5(const std::string &text)
 {
   init();
-  update(text.c_str(), text.length());
-  finalize();
+  pipeline(text.c_str(), text.length());
+  finsh();
 }
 void MD5::init()
 {
-  finalized=false;
+  done=false;
 
   count[0] = 0;
   count[1] = 0;
@@ -88,6 +75,7 @@ void MD5::padding(uint4 output[], const uint1 input[], int len)
       (((uint4)input[j+2]) << 16) | (((uint4)input[j+3]) << 24);
 }
 
+// encode input into little endian
 void MD5::encode(uint1 output[], const uint4 input[], int len)
 {
   for (int i = 0, j = 0; j < len; i++, j += 4) {
@@ -102,9 +90,12 @@ void MD5::processBlock(const uint1 block[64])
 {
   uint4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
   padding(x, block, 64);
-
-  // here is reference from https://tools.ietf.org/html/rfc1321
+  
   // Round 1
+  #define S11 7
+  #define S12 12
+  #define S13 17
+  #define S14 22
   FF (a, b, c, d, x[ 0], S11, 0xd76aa478); /* 1 */
   FF (d, a, b, c, x[ 1], S12, 0xe8c7b756); /* 2 */
   FF (c, d, a, b, x[ 2], S13, 0x242070db); /* 3 */
@@ -123,6 +114,10 @@ void MD5::processBlock(const uint1 block[64])
   FF (b, c, d, a, x[15], S14, 0x49b40821); /* 16 */
 
   // Round 2
+  #define S21 5
+  #define S22 9
+  #define S23 14
+  #define S24 20
   GG (a, b, c, d, x[ 1], S21, 0xf61e2562); /* 17 */
   GG (d, a, b, c, x[ 6], S22, 0xc040b340); /* 18 */
   GG (c, d, a, b, x[11], S23, 0x265e5a51); /* 19 */
@@ -141,6 +136,10 @@ void MD5::processBlock(const uint1 block[64])
   GG (b, c, d, a, x[12], S24, 0x8d2a4c8a); /* 32 */
 
   // Round 3
+  #define S31 4
+  #define S32 11
+  #define S33 16
+  #define S34 23
   HH (a, b, c, d, x[ 5], S31, 0xfffa3942); /* 33 */
   HH (d, a, b, c, x[ 8], S32, 0x8771f681); /* 34 */
   HH (c, d, a, b, x[11], S33, 0x6d9d6122); /* 35 */
@@ -159,6 +158,10 @@ void MD5::processBlock(const uint1 block[64])
   HH (b, c, d, a, x[ 2], S34, 0xc4ac5665); /* 48 */
 
   // Round 4
+  #define S41 6
+  #define S42 10
+  #define S43 15
+  #define S44 21
   II (a, b, c, d, x[ 0], S41, 0xf4292244); /* 49 */
   II (d, a, b, c, x[ 7], S42, 0x432aff97); /* 50 */
   II (c, d, a, b, x[14], S43, 0xab9423a7); /* 51 */
@@ -182,100 +185,92 @@ void MD5::processBlock(const uint1 block[64])
   state[3] += d;
 }
 
-void MD5::update(const unsigned char input[], int length)
+// MD5 block pipeline operation, can deal with arbitray length of msg
+void MD5::pipeline(const unsigned char input[], int length)
 {
-  // compute number of bytes mod 64
-  int index = count[0] / 8 % 64;
-
-  // Update number of bits
-  if ((count[0] += (length << 3)) < (length << 3))
+  int i = 0;
+  int idx = (count[0] >> 3) % 64;
+ 
+  // get number of bits
+  count[0] += (length << 3);
+  if (count[0] < (length << 3))
     count[1]++;
   count[1] += (length >> 29);
-
-  // number of bytes we need to fill in buffer
-  int firstpart = 64 - index;
-
-  int i;
-
-  // transform as many times as possible.
-  if (length >= firstpart)
-  {
-    // fill buffer first, transform
-    memcpy(&buffer[index], input, firstpart);
+ 
+  // get number of bytes for filling buffer
+  int front = 64 - idx;
+ 
+  // process all the blocks, chunksize: 64
+  if (length >= front){
+    memcpy(&buffer[idx], input, front);
     processBlock(buffer);
-
-    // transform chunks of 64 (64 bytes)
-    for (i = firstpart; i + 64 <= length; i += 64)
+ 
+    for (i = front; i + 64 <= length; i += 64)
       processBlock(&input[i]);
-
-    index = 0;
+ 
+    idx = 0;
   }
-  else
-    i = 0;
-
-  // buffer remaining input
-  memcpy(&buffer[index], &input[i], length-i);
+ 
+  // remain input
+  memcpy(&buffer[idx], &input[i], length-i);
 }
-
-void MD5::update(const char input[], int length)
+ 
+// function overloading for both signed & unsigned char input
+void MD5::pipeline(const char input[], int length)
 {
-  update((const unsigned char*)input, length);
+  pipeline((const unsigned char*)input, length);
 }
-
-// MD5 finalization. Ends an MD5 message-digest operation, writing the
-// the message digest and zeroizing the context.
-MD5& MD5::finalize()
+ 
+// MD5 pipeline: padding -> process -> output
+MD5& MD5::finsh()
 {
   static unsigned char padding[64] = {
     0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   };
-
-  if (!finalized) {
-    // Save number of bits
+ 
+  if (!done) {
+    int padLen;
     unsigned char bits[8];
     encode(bits, count, 8);
+ 
+    // pad to 56 mod 64
+    int idx = count[0] / 8 % 64;
 
-    // pad out to 56 mod 64.
-    int index = count[0] / 8 % 64;
-    int padLen = (index < 56) ? (56 - index) : (120 - index);
-    update(padding, padLen);
-
-    // Append length (before padding)
-    update(bits, 8);
-
-    // Store state in digest
+    if (idx < 56) {
+      padLen = 56 - idx;
+    } else {
+      padLen = 120 - idx;
+    }
+    pipeline(padding, padLen);
+    pipeline(bits, 8);
+ 
+    // digest should be little endian
     encode(digest, state, 16);
-
-    finalized=true;
+ 
+    done = true;
   }
-
+ 
   return *this;
 }
-
-// return hex representation of digest as string
-std::string MD5::hexdigest() const
+ 
+// return hex of digest with string
+std::string MD5::hex2String() const
 {
-  if (!finalized)
+  if (!done)
     return "";
-
+ 
   char buf[33];
+  memset(buf, '0', sizeof(buf));
   for (int i=0; i<16; i++)
-    sprintf(buf+i*2, "%02x", digest[i]);
-  buf[32]=0;
-
+    sprintf(buf + i*2, "%02x", digest[i]); // parse with hex here
+ 
   return std::string(buf);
 }
-
-std::ostream& operator<<(std::ostream& out, MD5 md5)
-{
-  return out << md5.hexdigest();
-}
-
+ 
 std::string md5(const std::string str)
 {
-    MD5 md5 = MD5(str);
-
-    return md5.hexdigest();
-} 
+  MD5 md5 = MD5(str);
+  return md5.hex2String();
+}
