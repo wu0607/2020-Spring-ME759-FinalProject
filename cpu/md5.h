@@ -6,10 +6,10 @@ public:
   // typedef unsigned int size_type; // must be 32bit
   MD5();
   MD5(const std::string& text);
-  void update(const unsigned char *buf, int length);
-  void update(const char *buf, int length);
+  void pipeline(const unsigned char *buf, int length);
+  void pipeline(const char *buf, int length);
   MD5& finalize();
-  std::string hexdigest() const;
+  std::string hexString() const;
   friend std::ostream& operator<<(std::ostream&, MD5 md5);
 
 private:
@@ -20,7 +20,7 @@ private:
   void processBlock(const uint1 block[64]);
   static void padding(uint4 output[], const uint1 input[], int len);
   static void encode(uint1 output[], const uint4 input[], int len);
-  bool finalized;
+  bool done;
   uint1 buffer[64]; // bytes that didn't fit in last 64 byte chunk
   uint4 count[2];   // 64bit counter for number of bits (lo, hi)
   uint4 state[4];   // digest so far

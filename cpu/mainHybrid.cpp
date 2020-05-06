@@ -70,7 +70,7 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 	MPI_Request request;
 
     startTime = MPI_Wtime();
-	#pragma omp parallel for shared(find, flag) schedule(auto) reduction(+:localCount) num_threads(12)
+	#pragma omp parallel for shared(find, flag) schedule(dynamic) reduction(+:localCount) num_threads(12)
 	for (long long i = start; i < end; i++) {
 		MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG , MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
 

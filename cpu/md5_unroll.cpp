@@ -65,12 +65,12 @@ MD5::MD5()
 MD5::MD5(const std::string &text)
 {
   init();
-  update(text.c_str(), text.length());
+  pipeline(text.c_str(), text.length());
   finalize();
 }
 void MD5::init()
 {
-  finalized=false;
+  done=false;
 
   count[0] = 0;
   count[1] = 0;
@@ -88,6 +88,7 @@ void MD5::padding(uint4 output[], const uint1 input[], int len)
       (((uint4)input[j+2]) << 16) | (((uint4)input[j+3]) << 24);
 }
 
+// encode input into little endian
 void MD5::encode(uint1 output[], const uint4 input[], int len)
 {
   for (int i = 0, j = 0; j < len; i++, j += 4) {
@@ -182,12 +183,12 @@ void MD5::processBlock(const uint1 block[64])
   state[3] += d;
 }
 
-void MD5::update(const unsigned char input[], int length)
+void MD5::pipeline(const unsigned char input[], int length)
 {
   // compute number of bytes mod 64
   int index = count[0] / 8 % 64;
 
-  // Update number of bits
+  // pipeline number of bits
   if ((count[0] += (length << 3)) < (length << 3))
     count[1]++;
   count[1] += (length >> 29);
@@ -217,9 +218,9 @@ void MD5::update(const unsigned char input[], int length)
   memcpy(&buffer[index], &input[i], length-i);
 }
 
-void MD5::update(const char input[], int length)
+void MD5::pipeline(const char input[], int length)
 {
-  update((const unsigned char*)input, length);
+  pipeline((const unsigned char*)input, length);
 }
 
 // MD5 finalization. Ends an MD5 message-digest operation, writing the
@@ -232,7 +233,7 @@ MD5& MD5::finalize()
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   };
 
-  if (!finalized) {
+  if (!done) {
     // Save number of bits
     unsigned char bits[8];
     encode(bits, count, 8);
@@ -240,24 +241,24 @@ MD5& MD5::finalize()
     // pad out to 56 mod 64.
     int index = count[0] / 8 % 64;
     int padLen = (index < 56) ? (56 - index) : (120 - index);
-    update(padding, padLen);
+    pipeline(padding, padLen);
 
     // Append length (before padding)
-    update(bits, 8);
+    pipeline(bits, 8);
 
     // Store state in digest
     encode(digest, state, 16);
 
-    finalized=true;
+    done = true;
   }
 
   return *this;
 }
 
 // return hex representation of digest as string
-std::string MD5::hexdigest() const
+std::string MD5::hexString() const
 {
-  if (!finalized)
+  if (!done)
     return "";
 
   char buf[33];
@@ -270,12 +271,12 @@ std::string MD5::hexdigest() const
 
 std::ostream& operator<<(std::ostream& out, MD5 md5)
 {
-  return out << md5.hexdigest();
+  return out << md5.hexString();
 }
 
 std::string md5(const std::string str)
 {
     MD5 md5 = MD5(str);
 
-    return md5.hexdigest();
+    return md5.hexString();
 } 

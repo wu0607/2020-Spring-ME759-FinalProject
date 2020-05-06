@@ -90,13 +90,9 @@ void md5_crack(string hash, string filename) {
 		high_resolution_clock::time_point start = high_resolution_clock::now();
     	high_resolution_clock::time_point end;
 		
-		#pragma omp parallel for shared(find) schedule(auto) reduction(+:totalCount) num_threads(12)
+		#pragma omp parallel for shared(find) schedule(dynamic) reduction(+:totalCount) num_threads(12)
 		for (long long i = 0; i<maxVal; i++) {
 			if (find){
-				if(!duration_sec){
-					end = high_resolution_clock::now(); 
-					duration_sec = std::chrono::duration_cast<duration<double, std::milli> >(end - start).count()/1000;
-				}
 				continue;
 			}
 			totalCount += 1;
@@ -107,6 +103,8 @@ void md5_crack(string hash, string filename) {
 				// cout << "threadNum: " << omp_get_num_threads() << endl;
 				cout.flush();
 				find = true;
+				end = high_resolution_clock::now(); 
+				duration_sec = std::chrono::duration_cast<duration<double, std::milli> >(end - start).count()/1000;
 			} 
 		}
 

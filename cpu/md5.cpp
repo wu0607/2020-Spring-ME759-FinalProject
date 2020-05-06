@@ -2,7 +2,7 @@
 #include <cstdio>
  
 // Constants
-uint32_t md5_constants[64] = {
+uint32_t md5Constants[64] = {
     0xd76aa478,0xe8c7b756,0x242070db,0xc1bdceee,0xf57c0faf,0x4787c62a,
     0xa8304613,0xfd469501,0x698098d8,0x8b44f7af,0xffff5bb1,0x895cd7be,
     0x6b901122,0xfd987193,0xa679438e,0x49b40821,0xf61e2562,0xc040b340,
@@ -16,7 +16,7 @@ uint32_t md5_constants[64] = {
     0xf7537e82,0xbd3af235,0x2ad7d2bb,0xeb86d391
 };
 
-uint32_t md5_shift_amounts[16] = {
+uint32_t md5ShiftAmounts[16] = {
     7, 12, 17, 22,
     5,  9, 14, 20,
     4, 11, 16, 23,
@@ -69,38 +69,36 @@ MD5::MD5()
 MD5::MD5(const std::string &text)
 {
   init();
-  update(text.c_str(), text.length());
+  pipeline(text.c_str(), text.length());
   finalize();
 }
  
 void MD5::init()
 {
-  finalized=false;
+  done = false;
  
-  count[0] = 0;
-  count[1] = 0;
- 
+  memset(buffer, 0, sizeof(buffer));
+  memset(count, 0, sizeof(count));
+  
+  // md5 magic initial number
   state[0] = 0x67452301;
   state[1] = 0xefcdab89;
   state[2] = 0x98badcfe;
   state[3] = 0x10325476;
 }
  
-// pad input (unsigned char) into output (uint32_t). Assumes len is
-//  a multiple of 4 (128bit), for running MD5 function
 void MD5::padding(uint4 output[], const uint1 input[], int len)
 {
-  for (unsigned int i = 0, j = 0; j < len; i++, j += 4)
+  for (int i = 0, j = 0; j < len; i++, j += 4)
     output[i] = ((uint4)input[j]) | (((uint4)input[j+1]) << 8) |
       (((uint4)input[j+2]) << 16) | (((uint4)input[j+3]) << 24);
 }
  
- // Encodes input (uint32_t) into output (unsigned char). Assumes len is
- //  a multiple of 4(128bit).
+// encode input into little endian
 void MD5::encode(uint1 output[], const uint4 input[], int len)
 {
   for (int i = 0, j = 0; j < len; i++, j += 4) {
-    output[j] = input[i] & 0xff;
+    output[j]   = input[i] & 0xff;
     output[j+1] = (input[i] >> 8) & 0xff;
     output[j+2] = (input[i] >> 16) & 0xff;
     output[j+3] = (input[i] >> 24) & 0xff;
@@ -116,23 +114,22 @@ void MD5::encode(uint1 output[], const uint4 input[], int len)
         int bufferIdx = i;
         int shiftIdx = (round << 2) | (i & 3);
         uint32_t tmp = 0;
-        switch (round)
-        {
-        case 0: // 0 - 15 FF
-            tmp = FF(a, b, c, d, x[bufferIdx], md5_shift_amounts[shiftIdx], md5_constants[i]);
-            break;
-        case 1: // 16 - 31 GG
-            bufferIdx = (i*5 + 1) % 16;
-            tmp = GG(a, b, c, d, x[bufferIdx], md5_shift_amounts[shiftIdx], md5_constants[i]);
-            break;
-        case 2: // 32 - 47 HH
-            bufferIdx = (i*3 + 5) % 16;
-            tmp = HH(a, b, c, d, x[bufferIdx], md5_shift_amounts[shiftIdx], md5_constants[i]);
-            break;
-        case 3: // 48 - 63 II
-            bufferIdx = (i*7) % 16;
-            tmp = II(a, b, c, d, x[bufferIdx], md5_shift_amounts[shiftIdx], md5_constants[i]);
-            break;
+        switch (round) {
+          case 0: // 0 - 15 FF
+              tmp = FF(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
+              break;
+          case 1: // 16 - 31 GG
+              bufferIdx = (i*5 + 1) % 16;
+              tmp = GG(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
+              break;
+          case 2: // 32 - 47 HH
+              bufferIdx = (i*3 + 5) % 16;
+              tmp = HH(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
+              break;
+          case 3: // 48 - 63 II
+              bufferIdx = (i*7) % 16;
+              tmp = II(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
+              break;
         }
         a = d;
         d = c;
@@ -145,50 +142,44 @@ void MD5::encode(uint1 output[], const uint4 input[], int len)
     state[3] += d;
 } 
  
-// MD5 block update operation. Continues an MD5 message-digest
-// operation, processing another message block
-void MD5::update(const unsigned char input[], int length)
+// MD5 block pipeline operation, can deal with arbitray length of msg
+void MD5::pipeline(const unsigned char input[], int length)
 {
-  // compute number of bytes mod 64
-  int index = count[0] / 8 % 64;
+  int idx = (count[0] >> 3) % 64;
  
-  // Update number of bits
-  if ((count[0] += (length << 3)) < (length << 3))
+  // get number of bits
+  count[0] += (length << 3);
+  if (count[0] < (length << 3))
     count[1]++;
   count[1] += (length >> 29);
  
-  // number of bytes we need to fill in buffer
-  int firstpart = 64 - index;
+  // get number of bytes for filling buffer
+  int front = 64 - idx;
  
-  int i;
+  int i = 0;
  
-  // transform as many times as possible.
-  if (length >= firstpart)
-  {
-    // fill buffer first, transform
-    memcpy(&buffer[index], input, firstpart);
+  // process all the blocks, chunksize: 64
+  if (length >= front){
+    memcpy(&buffer[idx], input, front);
     processBlock(buffer);
  
-    // transform chunks of 64 (64 bytes)
-    for (i = firstpart; i + 64 <= length; i += 64)
+    for (i = front; i + 64 <= length; i += 64)
       processBlock(&input[i]);
  
-    index = 0;
+    idx = 0;
   }
-  else
-    i = 0;
  
-  // buffer remaining input
-  memcpy(&buffer[index], &input[i], length-i);
+  // fill remaining input
+  memcpy(&buffer[idx], &input[i], length-i);
 }
  
-// just a function overloading for convenience
-void MD5::update(const char input[], int length)
+// function overloading for both signed & unsigned char input
+void MD5::pipeline(const char input[], int length)
 {
-  update((const unsigned char*)input, length);
+  pipeline((const unsigned char*)input, length);
 }
  
-// MD5 main pipeline, padding -> process -> output
+// MD5 pipeline: padding -> process -> output
 MD5& MD5::finalize()
 {
   static unsigned char padding[64] = {
@@ -197,48 +188,45 @@ MD5& MD5::finalize()
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   };
  
-  if (!finalized) {
+  if (!done) {
     unsigned char bits[8];
     encode(bits, count, 8);
  
-    // pad to 56 mod 64.
+    // pad to 56 mod 64
     int idx = count[0] / 8 % 64;
     int padLen = (idx < 56) ? (56 - idx) : (120 - idx);
-    update(padding, padLen);
+    pipeline(padding, padLen);
+    pipeline(bits, 8);
  
-    // Append length (before padding)
-    update(bits, 8);
- 
-    // Store state in digest
+    // digest should be little endian
     encode(digest, state, 16);
  
-    // Zeroize sensitive information.
-    memset(buffer, 0, sizeof buffer);
-    memset(count, 0, sizeof count);
+    // clear up data
+    memset(buffer, 0, sizeof(buffer));
+    memset(count, 0, sizeof(count));
  
-    finalized=true;
+    done = true;
   }
  
   return *this;
 }
  
-// return hex of digest as string
-std::string MD5::hexdigest() const
+// return hex of digest with string
+std::string MD5::hexString() const
 {
-  if (!finalized)
+  if (!done)
     return "";
  
   char buf[33];
+  memset(buf, '0', sizeof(buf));
   for (int i=0; i<16; i++)
-    sprintf(buf+i*2, "%02x", digest[i]);
-  buf[32]=0;
+    sprintf(buf + i*2, "%02x", digest[i]);
  
   return std::string(buf);
 }
  
 std::string md5(const std::string str)
 {
-    MD5 md5 = MD5(str);
- 
-    return md5.hexdigest();
+  MD5 md5 = MD5(str);
+  return md5.hexString();
 }
