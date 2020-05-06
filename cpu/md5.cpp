@@ -139,39 +139,45 @@ void MD5::encode(unsigned char output[], const unsigned int input[], int len)
  
 void MD5::processBlock(const unsigned char block[64])
 {
-    uint32_t a = state[0], b = state[1], c = state[2], d = state[3], x[16];
-    padding(x, block, 64); // extract block into x
-    for (int i = 0; i < 64; i++) {
-        int round = i >> 4;
-        int bufferIdx = i;
-        int shiftIdx = (round << 2) | (i & 3);
-        uint32_t tmp = 0;
-        switch (round) {
-          case 0: // 0 - 15 FF
-              tmp = FF(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
-              break;
-          case 1: // 16 - 31 GG
-              bufferIdx = (i*5 + 1) % 16;
-              tmp = GG(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
-              break;
-          case 2: // 32 - 47 HH
-              bufferIdx = (i*3 + 5) % 16;
-              tmp = HH(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
-              break;
-          case 3: // 48 - 63 II
-              bufferIdx = (i*7) % 16;
-              tmp = II(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
-              break;
-        }
-        a = d;
-        d = c;
-        c = b;
-        b = tmp;
+  uint32_t a = state[0], b = state[1], c = state[2], d = state[3], x[16];
+
+  // first pad the block to a multiple of 512 bits
+  padding(x, block, 64); // extract block into x
+
+  // main loop
+  for (int i = 0; i < 64; i++) {
+    int round = i >> 4;
+    int bufferIdx = i;
+    int shiftIdx = (round << 2) | (i & 3);
+    uint32_t tmp = 0;
+    switch (round) {
+      case 0: // 0 - 15 FF
+        tmp = FF(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
+        break;
+      case 1: // 16 - 31 GG
+        bufferIdx = (i*5 + 1) % 16;
+        tmp = GG(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
+        break;
+      case 2: // 32 - 47 HH
+        bufferIdx = (i*3 + 5) % 16;
+        tmp = HH(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
+        break;
+      case 3: // 48 - 63 II
+        bufferIdx = (i*7) % 16;
+        tmp = II(a, b, c, d, x[bufferIdx], md5ShiftAmounts[shiftIdx], md5Constants[i]);
+        break;
     }
-    state[0] += a;
-    state[1] += b;
-    state[2] += c;
-    state[3] += d;
+    a = d;
+    d = c;
+    c = b;
+    b = tmp;
+  }
+
+  // add to state
+  state[0] += a;
+  state[1] += b;
+  state[2] += c;
+  state[3] += d;
 } 
  
 // MD5 block pipeline operation, can deal with arbitray length of msg

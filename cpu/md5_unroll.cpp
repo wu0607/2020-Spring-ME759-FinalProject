@@ -115,6 +115,8 @@ void MD5::encode(unsigned char output[], const unsigned int input[], int len)
 void MD5::processBlock(const unsigned char block[64])
 {
   unsigned int a = state[0], b = state[1], c = state[2], d = state[3], x[16];
+
+  // first pad the block to a multiple of 512 bits
   padding(x, block, 64);
   
   // Round 1
