@@ -21,7 +21,7 @@ using chrono::duration;
 vector<char> alphabet;
 double startTime;
 long long totalCount = 0;
-// long long localCount = 0;
+int tag = 1;
 
 void md5_crack(string hash, string file);
 
@@ -86,12 +86,19 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 	long long localCount = 0;
 	long long start = maxVal / size * rank;
 	long long end = maxVal / size * (rank + 1);
-	volatile bool find = false;
+	int find = 0;
 	volatile double duration_sec = 0;
-
+	int flag = 0; 
+	MPI_Request request;
+	
     startTime = MPI_Wtime();
 	for (long long i = start; i < end; i++) {
-		if (find){
+		MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG , MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
+
+		if(find){
+			continue;
+		}
+		if(flag){
 			continue;
 		}
 		string cand = customToString(i);
@@ -100,18 +107,21 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 		if (hash_sum == hash) {
 			cout << "*** Rank" << rank << "[" << i << "] - PASSWORD FOUND - " << cand << " ***" << endl;
 			duration_sec = MPI_Wtime() - startTime;
-			// cout << duration_sec << "sec" << endl;
 			cout.flush();
-			int err;
 			// cout << "localCount:" << localCount << " ;threadNum: " << omp_get_num_threads() << endl;
 			// cout << "duration_sec:" << duration_sec << endl;
-			find = true;
+			find = 1;
+			for (int r = 0; r < size; ++r) {
+				if(r != rank){
+           			MPI_Isend(&find, 1, MPI_INT, r, tag , MPI_COMM_WORLD, &request);
+				}
+        	}
 		} 
 	}
 	
 	MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+	// cout << rank << " - localCount:" << localCount << " totalCount: " << totalCount << " duration_sec:" << duration_sec << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
 	if(duration_sec){
-		// cout << "localCount:" << localCount << " totalCount: " << totalCount << " duration_sec:" << duration_sec << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
 		cout << "Duration = " << duration_sec << " sec" << endl;
 		cout << "Throughput = " << totalCount / duration_sec << " #hash/sec" << endl;
 	}

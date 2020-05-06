@@ -81,16 +81,16 @@ void MD5::init()
   state[3] = 0x10325476;
 }
 
-void MD5::decode(uint4 output[], const uint1 input[], size_type len)
+void MD5::padding(uint4 output[], const uint1 input[], int len)
 {
   for (unsigned int i = 0, j = 0; j < len; i++, j += 4)
     output[i] = ((uint4)input[j]) | (((uint4)input[j+1]) << 8) |
       (((uint4)input[j+2]) << 16) | (((uint4)input[j+3]) << 24);
 }
 
-void MD5::encode(uint1 output[], const uint4 input[], size_type len)
+void MD5::encode(uint1 output[], const uint4 input[], int len)
 {
-  for (size_type i = 0, j = 0; j < len; i++, j += 4) {
+  for (int i = 0, j = 0; j < len; i++, j += 4) {
     output[j] = input[i] & 0xff;
     output[j+1] = (input[i] >> 8) & 0xff;
     output[j+2] = (input[i] >> 16) & 0xff;
@@ -101,10 +101,10 @@ void MD5::encode(uint1 output[], const uint4 input[], size_type len)
 void MD5::processBlock(const uint1 block[64])
 {
   uint4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
-  decode (x, block, 64);
+  padding(x, block, 64);
 
   // here is reference from https://tools.ietf.org/html/rfc1321
-  /* Round 1 */
+  // Round 1
   FF (a, b, c, d, x[ 0], S11, 0xd76aa478); /* 1 */
   FF (d, a, b, c, x[ 1], S12, 0xe8c7b756); /* 2 */
   FF (c, d, a, b, x[ 2], S13, 0x242070db); /* 3 */
@@ -122,7 +122,7 @@ void MD5::processBlock(const uint1 block[64])
   FF (c, d, a, b, x[14], S13, 0xa679438e); /* 15 */
   FF (b, c, d, a, x[15], S14, 0x49b40821); /* 16 */
 
-  /* Round 2 */
+  // Round 2
   GG (a, b, c, d, x[ 1], S21, 0xf61e2562); /* 17 */
   GG (d, a, b, c, x[ 6], S22, 0xc040b340); /* 18 */
   GG (c, d, a, b, x[11], S23, 0x265e5a51); /* 19 */
@@ -140,7 +140,7 @@ void MD5::processBlock(const uint1 block[64])
   GG (c, d, a, b, x[ 7], S23, 0x676f02d9); /* 31 */
   GG (b, c, d, a, x[12], S24, 0x8d2a4c8a); /* 32 */
 
-  /* Round 3 */
+  // Round 3
   HH (a, b, c, d, x[ 5], S31, 0xfffa3942); /* 33 */
   HH (d, a, b, c, x[ 8], S32, 0x8771f681); /* 34 */
   HH (c, d, a, b, x[11], S33, 0x6d9d6122); /* 35 */
@@ -158,7 +158,7 @@ void MD5::processBlock(const uint1 block[64])
   HH (c, d, a, b, x[15], S33, 0x1fa27cf8); /* 47 */
   HH (b, c, d, a, x[ 2], S34, 0xc4ac5665); /* 48 */
 
-  /* Round 4 */
+  // Round 4
   II (a, b, c, d, x[ 0], S41, 0xf4292244); /* 49 */
   II (d, a, b, c, x[ 7], S42, 0x432aff97); /* 50 */
   II (c, d, a, b, x[14], S43, 0xab9423a7); /* 51 */
@@ -182,10 +182,10 @@ void MD5::processBlock(const uint1 block[64])
   state[3] += d;
 }
 
-void MD5::update(const unsigned char input[], size_type length)
+void MD5::update(const unsigned char input[], int length)
 {
   // compute number of bytes mod 64
-  size_type index = count[0] / 8 % blocksize;
+  int index = count[0] / 8 % 64;
 
   // Update number of bits
   if ((count[0] += (length << 3)) < (length << 3))
@@ -193,9 +193,9 @@ void MD5::update(const unsigned char input[], size_type length)
   count[1] += (length >> 29);
 
   // number of bytes we need to fill in buffer
-  size_type firstpart = 64 - index;
+  int firstpart = 64 - index;
 
-  size_type i;
+  int i;
 
   // transform as many times as possible.
   if (length >= firstpart)
@@ -204,8 +204,8 @@ void MD5::update(const unsigned char input[], size_type length)
     memcpy(&buffer[index], input, firstpart);
     processBlock(buffer);
 
-    // transform chunks of blocksize (64 bytes)
-    for (i = firstpart; i + blocksize <= length; i += blocksize)
+    // transform chunks of 64 (64 bytes)
+    for (i = firstpart; i + 64 <= length; i += 64)
       processBlock(&input[i]);
 
     index = 0;
@@ -217,7 +217,7 @@ void MD5::update(const unsigned char input[], size_type length)
   memcpy(&buffer[index], &input[i], length-i);
 }
 
-void MD5::update(const char input[], size_type length)
+void MD5::update(const char input[], int length)
 {
   update((const unsigned char*)input, length);
 }
@@ -238,8 +238,8 @@ MD5& MD5::finalize()
     encode(bits, count, 8);
 
     // pad out to 56 mod 64.
-    size_type index = count[0] / 8 % 64;
-    size_type padLen = (index < 56) ? (56 - index) : (120 - index);
+    int index = count[0] / 8 % 64;
+    int padLen = (index < 56) ? (56 - index) : (120 - index);
     update(padding, padLen);
 
     // Append length (before padding)
@@ -247,10 +247,6 @@ MD5& MD5::finalize()
 
     // Store state in digest
     encode(digest, state, 16);
-
-    // Zeroize sensitive information.
-    memset(buffer, 0, sizeof buffer);
-    memset(count, 0, sizeof count);
 
     finalized=true;
   }
