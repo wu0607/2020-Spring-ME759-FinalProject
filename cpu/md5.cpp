@@ -70,7 +70,7 @@ MD5::MD5(const std::string &text)
 {
   init();
   pipeline(text.c_str(), text.length());
-  finalize();
+  finsh();
 }
  
 void MD5::init()
@@ -145,6 +145,7 @@ void MD5::encode(uint1 output[], const uint4 input[], int len)
 // MD5 block pipeline operation, can deal with arbitray length of msg
 void MD5::pipeline(const unsigned char input[], int length)
 {
+  int i = 0;
   int idx = (count[0] >> 3) % 64;
  
   // get number of bits
@@ -155,8 +156,6 @@ void MD5::pipeline(const unsigned char input[], int length)
  
   // get number of bytes for filling buffer
   int front = 64 - idx;
- 
-  int i = 0;
  
   // process all the blocks, chunksize: 64
   if (length >= front){
@@ -169,7 +168,7 @@ void MD5::pipeline(const unsigned char input[], int length)
     idx = 0;
   }
  
-  // fill remaining input
+  // remain input
   memcpy(&buffer[idx], &input[i], length-i);
 }
  
@@ -180,7 +179,7 @@ void MD5::pipeline(const char input[], int length)
 }
  
 // MD5 pipeline: padding -> process -> output
-MD5& MD5::finalize()
+MD5& MD5::finsh()
 {
   static unsigned char padding[64] = {
     0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -189,21 +188,23 @@ MD5& MD5::finalize()
   };
  
   if (!done) {
+    int padLen;
     unsigned char bits[8];
     encode(bits, count, 8);
  
     // pad to 56 mod 64
     int idx = count[0] / 8 % 64;
-    int padLen = (idx < 56) ? (56 - idx) : (120 - idx);
+
+    if (idx < 56) {
+      padLen = 56 - idx;
+    } else {
+      padLen = 120 - idx;
+    }
     pipeline(padding, padLen);
     pipeline(bits, 8);
  
     // digest should be little endian
     encode(digest, state, 16);
- 
-    // clear up data
-    memset(buffer, 0, sizeof(buffer));
-    memset(count, 0, sizeof(count));
  
     done = true;
   }
@@ -212,7 +213,7 @@ MD5& MD5::finalize()
 }
  
 // return hex of digest with string
-std::string MD5::hexString() const
+std::string MD5::hex2String() const
 {
   if (!done)
     return "";
@@ -228,5 +229,5 @@ std::string MD5::hexString() const
 std::string md5(const std::string str)
 {
   MD5 md5 = MD5(str);
-  return md5.hexString();
+  return md5.hex2String();
 }
