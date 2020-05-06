@@ -92,8 +92,8 @@ void run_MPI(int rank, int size, int maxVal, string hash){
         	}
 			cout << "*** Rank" << rank << "[" << i << "] - PASSWORD FOUND - " << cand << " ***" << endl;
 			duration_sec = MPI_Wtime() - startTime;
-			// cout << "localCount:" << localCount << "; threadNum: " << omp_get_num_threads() << endl;
-			// cout << "duration_sec:" << duration_sec << endl;
+			cout << "localCount:" << localCount << "; threadNum: " << omp_get_num_threads() << endl;
+			cout << "duration_sec:" << duration_sec << endl;
 			cout.flush();
 			find = 1;
 		} 

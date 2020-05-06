@@ -220,7 +220,7 @@ std::string MD5::hexString() const
   char buf[33];
   memset(buf, '0', sizeof(buf));
   for (int i=0; i<16; i++)
-    sprintf(buf + i*2, "%02x", digest[i]);
+    sprintf(buf + i*2, "%02x", digest[i]); // parse with hex here
  
   return std::string(buf);
 }
