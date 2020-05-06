@@ -120,7 +120,7 @@ void run_MPI(int rank, int size, int maxVal, string hash){
 	}
 	
 	MPI_Allreduce(&localCount, &totalCount, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-	cout << rank << " - localCount:" << localCount << " totalCount: " << totalCount << " duration_sec:" << duration_sec << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
+	// cout << rank << " - localCount:" << localCount << " totalCount: " << totalCount << " duration_sec:" << duration_sec << " throughput= " << totalCount / duration_sec << " #hash/sec" << endl;
 	if(duration_sec){
 		cout << "Duration = " << duration_sec << " sec" << endl;
 		cout << "Throughput = " << totalCount / duration_sec << " #hash/sec" << endl;
