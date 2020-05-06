@@ -4,9 +4,6 @@
 // this code is mainly reference from https://tools.ietf.org/html/rfc1321
 
 // Constants
-
-
-
 inline uint32_t F(uint32_t x, uint32_t y, uint32_t z) {
   return z ^ (x & (y ^ z));
 }
@@ -68,15 +65,15 @@ void MD5::init()
   state[3] = 0x10325476;
 }
 
-void MD5::padding(uint4 output[], const uint1 input[], int len)
+void MD5::padding(unsigned int output[], const unsigned char input[], int len)
 {
   for (unsigned int i = 0, j = 0; j < len; i++, j += 4)
-    output[i] = ((uint4)input[j]) | (((uint4)input[j+1]) << 8) |
-      (((uint4)input[j+2]) << 16) | (((uint4)input[j+3]) << 24);
+    output[i] = ((unsigned int)input[j]) | (((unsigned int)input[j+1]) << 8) |
+      (((unsigned int)input[j+2]) << 16) | (((unsigned int)input[j+3]) << 24);
 }
 
 // encode input into little endian
-void MD5::encode(uint1 output[], const uint4 input[], int len)
+void MD5::encode(unsigned char output[], const unsigned int input[], int len)
 {
   for (int i = 0, j = 0; j < len; i++, j += 4) {
     output[j] = input[i] & 0xff;
@@ -86,9 +83,9 @@ void MD5::encode(uint1 output[], const uint4 input[], int len)
   }
 }
 
-void MD5::processBlock(const uint1 block[64])
+void MD5::processBlock(const unsigned char block[64])
 {
-  uint4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
+  unsigned int a = state[0], b = state[1], c = state[2], d = state[3], x[16];
   padding(x, block, 64);
   
   // Round 1
@@ -189,7 +186,10 @@ void MD5::processBlock(const uint1 block[64])
 void MD5::pipeline(const unsigned char input[], int length)
 {
   int i = 0;
-  int idx = (count[0] >> 3) % 64;
+  int idx = (count[0] >> 3);
+  // According to Chandler Carruth's benchmarks at CppCon 2015,
+  // the fastest modulo operator
+  idx = (idx >= 64 ? idx % 64 : idx); 
  
   // get number of bits
   count[0] += (length << 3);
@@ -236,7 +236,8 @@ MD5& MD5::finsh()
     encode(bits, count, 8);
  
     // pad to 56 mod 64
-    int idx = count[0] / 8 % 64;
+    int idx = count[0] >> 3;
+    idx = (idx >= 64 ? idx % 64 : idx);
 
     if (idx < 56) {
       padLen = 56 - idx;

@@ -1,6 +1,8 @@
 #include "md5.h"
 #include <cstdio>
  
+// this code is mainly reference from https://tools.ietf.org/html/rfc1321
+
 // Constants
 uint32_t md5Constants[64] = {
     0xd76aa478,0xe8c7b756,0x242070db,0xc1bdceee,0xf57c0faf,0x4787c62a,
@@ -87,15 +89,15 @@ void MD5::init()
   state[3] = 0x10325476;
 }
  
-void MD5::padding(uint4 output[], const uint1 input[], int len)
+void MD5::padding(unsigned int output[], const unsigned char input[], int len)
 {
   for (int i = 0, j = 0; j < len; i++, j += 4)
-    output[i] = ((uint4)input[j]) | (((uint4)input[j+1]) << 8) |
-      (((uint4)input[j+2]) << 16) | (((uint4)input[j+3]) << 24);
+    output[i] = ((unsigned int)input[j]) | (((unsigned int)input[j+1]) << 8) |
+      (((unsigned int)input[j+2]) << 16) | (((unsigned int)input[j+3]) << 24);
 }
  
 // encode input into little endian
-void MD5::encode(uint1 output[], const uint4 input[], int len)
+void MD5::encode(unsigned char output[], const unsigned int input[], int len)
 {
   for (int i = 0, j = 0; j < len; i++, j += 4) {
     output[j]   = input[i] & 0xff;
@@ -105,7 +107,7 @@ void MD5::encode(uint1 output[], const uint4 input[], int len)
   }
 }
  
- void MD5::processBlock(const uint1 block[64])
+ void MD5::processBlock(const unsigned char block[64])
 {
     uint32_t a = state[0], b = state[1], c = state[2], d = state[3], x[16];
     padding(x, block, 64); // extract block into x
@@ -146,7 +148,8 @@ void MD5::encode(uint1 output[], const uint4 input[], int len)
 void MD5::pipeline(const unsigned char input[], int length)
 {
   int i = 0;
-  int idx = (count[0] >> 3) % 64;
+  int idx = (count[0] >> 3);
+  idx = (idx >= 64 ? idx % 64 : idx);
  
   // get number of bits
   count[0] += (length << 3);

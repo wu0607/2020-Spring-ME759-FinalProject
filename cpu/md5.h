@@ -11,19 +11,16 @@ public:
   std::string hex2String() const;
 
 private:
-  typedef unsigned char uint1; //  8bit
-  typedef unsigned int uint4;  // 32bit
-  
   void init();
-  void processBlock(const uint1 block[64]);
-  static void padding(uint4 output[], const uint1 input[], int len);
-  static void encode(uint1 output[], const uint4 input[], int len);
+  void processBlock(const unsigned char block[64]);
+  static void padding(unsigned int output[], const unsigned char input[], int len);
+  static void encode(unsigned char output[], const unsigned int input[], int len);
   
   bool done;
-  uint4 count[2];   // 64bit counter for number of bits (lo, hi)
-  uint4 state[4];   // digest so far
-  uint1 digest[16]; // the result
-  uint1 buffer[64]; // bytes that didn't fit in last 64 byte chunk
+  unsigned int count[2];   // 64bit counter for number of bits (lo, hi)
+  unsigned int state[4];   // digest so far
+  unsigned char digest[16]; // the result
+  unsigned char buffer[64]; // bytes that didn't fit in last 64 byte chunk
 };
 
 // helper function
