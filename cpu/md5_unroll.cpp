@@ -41,19 +41,11 @@ inline void II(uint32_t &a, uint32_t b, uint32_t c, uint32_t d, uint32_t x, uint
 }
 
 
-MD5::MD5()
-{
-  init();
-}
-
 MD5::MD5(const std::string &text)
 {
-  init();
-  pipeline(text.c_str(), text.length());
-  finsh();
-}
-void MD5::init()
-{
+  ////////////////
+  // init
+  ////////////////
   done=false;
 
   count[0] = 0;
@@ -63,11 +55,48 @@ void MD5::init()
   state[1] = 0xefcdab89;
   state[2] = 0x98badcfe;
   state[3] = 0x10325476;
+
+  ////////////////
+  // pipeline
+  ////////////////
+  pipeline(text.c_str(), text.length());
+
+  ////////////////
+  // finish
+  ////////////////
+  static unsigned char padding[64] = {
+    0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  };
+ 
+  if (!done) {
+    int padLen;
+    unsigned char bits[8];
+    encode(bits, count, 8);
+ 
+    // pad to 56 mod 64
+    int idx = count[0] >> 3;
+    idx = (idx >= 64 ? idx % 64 : idx);
+
+    if (idx < 56) {
+      padLen = 56 - idx;
+    } else {
+      padLen = 120 - idx;
+    }
+    pipeline(padding, padLen);
+    pipeline(bits, 8);
+ 
+    // digest should be little endian
+    encode(digest, state, 16);
+ 
+    done = true;
+  }
 }
 
 void MD5::padding(unsigned int output[], const unsigned char input[], int len)
 {
-  for (unsigned int i = 0, j = 0; j < len; i++, j += 4)
+  for (unsigned int i = 0, j = 0; j < (unsigned int)len; i++, j += 4)
     output[i] = ((unsigned int)input[j]) | (((unsigned int)input[j+1]) << 8) |
       (((unsigned int)input[j+2]) << 16) | (((unsigned int)input[j+3]) << 24);
 }
@@ -193,7 +222,7 @@ void MD5::pipeline(const unsigned char input[], int length)
  
   // get number of bits
   count[0] += (length << 3);
-  if (count[0] < (length << 3))
+  if (count[0] < ((unsigned int)length << 3))
     count[1]++;
   count[1] += (length >> 29);
  
@@ -221,55 +250,31 @@ void MD5::pipeline(const char input[], int length)
   pipeline((const unsigned char*)input, length);
 }
  
-// MD5 pipeline: padding -> process -> output
-MD5& MD5::finsh()
-{
-  static unsigned char padding[64] = {
-    0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-  };
- 
-  if (!done) {
-    int padLen;
-    unsigned char bits[8];
-    encode(bits, count, 8);
- 
-    // pad to 56 mod 64
-    int idx = count[0] >> 3;
-    idx = (idx >= 64 ? idx % 64 : idx);
-
-    if (idx < 56) {
-      padLen = 56 - idx;
-    } else {
-      padLen = 120 - idx;
-    }
-    pipeline(padding, padLen);
-    pipeline(bits, 8);
- 
-    // digest should be little endian
-    encode(digest, state, 16);
- 
-    done = true;
-  }
- 
-  return *this;
-}
- 
-// return hex of digest with string
+/**
+ * return hex of digest with string
+ */
 std::string MD5::hex2String() const
 {
   if (!done)
     return "";
  
+  // initialize a c-string style buffer and initialize to 0
   char buf[33];
   memset(buf, '0', sizeof(buf));
-  for (int i=0; i<16; i++)
-    sprintf(buf + i*2, "%02x", digest[i]); // parse with hex here
+
+  for (int i=0; i<16; i++) {
+    // parse with hex here
+    sprintf(buf + i*2, "%02x", digest[i]);
+  }
  
   return std::string(buf);
 }
  
+/**
+ * a helper function to convenienty get the md5 hash result
+ *
+ * will instantiate a instance of MD5 class, and return the hash
+ */
 std::string md5(const std::string str)
 {
   MD5 md5 = MD5(str);
