@@ -39,6 +39,7 @@ __device__ inline uint32_t rotate_left(uint32_t x, int n) {
 __device__ inline void padding(uint32_t* x, unsigned char data[], uint32_t length) {
     // padding the input string
     int i = 0;
+    // #pragma unroll
     for(i=0; i < length; i++){
         x[i / 4] |= data[i] << ((i % 4) * 8);
     }

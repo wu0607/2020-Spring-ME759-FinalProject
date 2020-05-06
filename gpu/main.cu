@@ -85,7 +85,7 @@ __global__ void md5Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01,
     // Find out which word shoud be the start word
     next(&threadWordLength, threadCharsetWord, g_idx * HASHES_PER_KERNEL);
     
-    // #pragma unroll
+    #pragma unroll
     for(uint32_t hash = 0; hash < HASHES_PER_KERNEL; hash++){
         // get current word
         for(uint32_t i = 0; i < threadWordLength; i++){

@@ -54,12 +54,70 @@ __device__ inline void II(uint32_t& a, uint32_t b, uint32_t c, uint32_t d, uint3
 __device__ inline void padding(uint32_t* x, unsigned char data[], uint32_t length) {
     // padding the input string
     int i = 0;
-    for(i=0; i < length; i++){
-        x[i / 4] |= data[i] << ((i % 4) * 8);
+    switch (length) {
+        case 1:
+            x[0 / 4] |= data[0] << ((0 % 4) * 8);
+            break;
+        case 2:
+            #pragma unroll
+            for(i=0; i < 2; i++){
+                x[i / 4] |= data[i] << ((i % 4) * 8);
+            }
+            break;
+        case 3:
+            #pragma unroll
+            for(i=0; i < 3; i++){
+                x[i / 4] |= data[i] << ((i % 4) * 8);
+            }
+            break;
+        case 4:
+            #pragma unroll
+            for(i=0; i < 4; i++){
+                x[i / 4] |= data[i] << ((i % 4) * 8);
+            }
+            break;
+        case 5:
+            #pragma unroll
+            for(i=0; i < 5; i++){
+                x[i / 4] |= data[i] << ((i % 4) * 8);
+            }
+            break;
+        case 6:
+            #pragma unroll
+            for(i=0; i < 6; i++){
+                x[i / 4] |= data[i] << ((i % 4) * 8);
+            }
+            break;
+        case 7:
+            #pragma unroll
+            for(i=0; i < 7; i++){
+                x[i / 4] |= data[i] << ((i % 4) * 8);
+            }
+            break;
+        case 8:
+            #pragma unroll
+            for(i=0; i < 8; i++){
+                x[i / 4] |= data[i] << ((i % 4) * 8);
+            }
+            break;
+        case 9:
+            #pragma unroll
+            for(i=0; i < 9; i++){
+                x[i / 4] |= data[i] << ((i % 4) * 8);
+            }
+            break;
+        case 10:
+            #pragma unroll
+            for(i=0; i < 10; i++){
+                x[i / 4] |= data[i] << ((i % 4) * 8);
+            }
+        default:
+            for(i=0; i < length; i++){
+                x[i / 4] |= data[i] << ((i % 4) * 8);
+            }
     }
-    
     x[i / 4] |= 0x80 << ((i % 4) * 8);
-
+    
     uint32_t bitlen = length * 8;
     x[14] = bitlen;
     x[15] = 0;
